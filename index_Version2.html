@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Librairie Rayen</title>
+<!-- Fonts: ajout Montserrat + Nunito pour headings / body -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Nunito:wght@400;600&family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Draggable lang flags -->
+<div id="langBar">
+  <button class="lbtn on" onclick="setLang('fr')" title="Français"><img src="https://flagcdn.com/w40/fr.png" alt="FR"></button>
+  <button class="lbtn" onclick="setLang('en')" title="English"><img src="https://flagcdn.com/w40/gb.png" alt="EN"></button>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- ════ PAGE 1 — HERO (classe mix-design + lens-mode activée) ════ -->
+<div class="page active" id="p1" data-design="mix" class="mix-design lens-mode">
+  <div class="hero-geo"></div><div class="hero-stripe"></div>
+  <div class="hero-body">
+    <div class="hbrand">
+      <div class="hlogo" id="hLogo"><img id="hLogoImg" src="" alt="" style="display:none"><span class="hfb" id="hLogoFb">📚</span></div>
+      <div class="hname-wrap">
+        <div class="hname" id="hName">Librairie Rayen</div>
+        <div class="htag" id="hTag">Ain Zaghouan · Tunis 2045</div>
+      </div>
+    </div>
+    <h1 class="hero-h1"><em data-t="h1a">Réservez</em> <span data-t="h1b">vos livres</span><br><span data-t="h1c">depuis chez vous.</span></h1>
+    <p class="hero-sub" id="heroSub">Parcourez par école et niveau, choisissez vos manuels, payez en toute sécurité — sans vous déplacer.</p>
+    <button class="hero-cta" onclick="go('p2')"><span data-t="ctabtn">Parcourir les livres</span> <span class="ic">→</span></button>
+    <div class="hmetrics">
+      <div class="hm"><div class="hm-val">240+</div><div class="hm-lbl" data-t="m1">Livres disponibles</div></div>
+      <div class="hm"><div class="hm-val">38</div><div class="hm-lbl" data-t="m2">Écoles partenaires</div></div>
+      <div class="hm"><div class="hm-val">3</div><div class="hm-lbl" data-t="m3">Modes de paiement</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ... le reste du fichier index.html sans changement ... -->
+
+<script src="script.js"></script>
+</body>
+</html>
