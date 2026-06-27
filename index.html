@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Librairie Rayen</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Draggable lang flags -->
+<div id="langBar">
+  <button class="lbtn on" onclick="setLang('fr')" title="Français"><img src="https://flagcdn.com/w40/fr.png" alt="FR"></button>
+  <button class="lbtn" onclick="setLang('en')" title="English"><img src="https://flagcdn.com/w40/gb.png" alt="EN"></button>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- ════ PAGE 1 — HERO ════ -->
+<div class="page active" id="p1">
+  <div class="hero-geo"></div><div class="hero-stripe"></div>
+  <div class="hero-body">
+    <div class="hbrand">
+      <div class="hlogo" id="hLogo"><img id="hLogoImg" src="" alt="" style="display:none"><span class="hfb" id="hLogoFb">📚</span></div>
+      <div class="hname-wrap">
+        <div class="hname" id="hName">Librairie Rayen</div>
+        <div class="htag" id="hTag">Ain Zaghouan · Tunis 2045</div>
+      </div>
+    </div>
+    <h1 class="hero-h1"><em data-t="h1a">Réservez</em> <span data-t="h1b">vos livres</span><br><span data-t="h1c">depuis chez vous.</span></h1>
+    <p class="hero-sub" id="heroSub">Parcourez par école et niveau, choisissez vos manuels, payez en toute sécurité — sans vous déplacer.</p>
+    <button class="hero-cta" onclick="go('p2')"><span data-t="ctabtn">Parcourir les livres</span> <span class="ic">→</span></button>
+    <div class="hmetrics">
+      <div class="hm"><div class="hm-val">240+</div><div class="hm-lbl" data-t="m1">Livres disponibles</div></div>
+      <div class="hm"><div class="hm-val">38</div><div class="hm-lbl" data-t="m2">Écoles partenaires</div></div>
+      <div class="hm"><div class="hm-val">3</div><div class="hm-lbl" data-t="m3">Modes de paiement</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PAGE 2 — CATALOG ════ -->
+<div class="page" id="p2">
+  <nav class="topnav">
+    <div class="nav-brand">
+      <div class="nav-lb" id="nLb2"><img id="nLi2" src="" alt="" style="display:none"><span class="nfb" id="nLf2">📚</span></div>
+      <div class="nav-n" id="nN2">Librairie Rayen</div>
+    </div>
+    <div class="nav-acts">
+      <button class="nbtn" onclick="go('p1')" data-t="back">← Accueil</button>
+      <button class="nbtn cta" onclick="showAdminLogin()">Admin</button>
+    </div>
+  </nav>
+  <div class="pbody">
+    <div class="phead"><h1 data-t="p2title">Trouvez vos livres</h1><p id="p2sub">Sélectionnez votre école et votre niveau pour voir la liste des manuels.</p></div>
+    <div class="srch-wrap">
+      <span class="srch-ico">🔍</span>
+      <input class="srch-inp" id="srch" data-t-ph="searchph" placeholder="Rechercher — titre, matière, EAN..." oninput="doSearch(this.value)">
+      <button class="srch-clr" id="srchClr" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="fbar">
+      <div class="fg"><label data-t="schoollbl">École</label>
+        <select id="schoolSel" onchange="onSchoolChange()"><option value="" data-t-opt="chooseschool">— Choisir une école —</option></select>
+      </div>
+      <div class="fg"><label data-t="levellbl">Niveau</label>
+        <select id="levelSel"><option value="" data-t-opt="chooselevel">— Choisir un niveau —</option></select>
+      </div>
+      <button class="fbtn" onclick="filterBooks()" data-t="search">Rechercher</button>
+    </div>
+    <div id="booksArea">
+      <div class="empty-state"><span class="es-ico">📚</span><div class="es-title" data-t="empty1">Sélectionnez votre école et niveau</div><p data-t="empty2">Utilisez les filtres ci-dessus pour trouver les manuels requis.</p></div>
+    </div>
+  </div>
+  <!-- DUAL ACTION CART BAR -->
+  <div class="cart-bar" id="cartBar">
+    <div class="cart-left">
+      <span class="cbadge" id="cbadge">0 article(s)</span>
+      <span class="ctot-lbl"><span data-t="total">Total :</span> <strong id="ctot">0.000 TND</strong></span>
+    </div>
+    <div class="cart-actions">
+      <button class="cart-btn btn-reserve" id="btnRes" onclick="go('p4')" disabled>
+        📌 <span data-t="butnres">Réserver</span>
+      </button>
+      <button class="cart-btn btn-order" id="btnOrd" onclick="go('p3')" disabled>
+        🛒 <span data-t="butnord">Commander</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PAGE 3 — COMMANDER (full checkout) ════ -->
+<div class="page" id="p3">
+  <nav class="topnav">
+    <div class="nav-brand">
+      <div class="nav-lb" id="nLb3"><img id="nLi3" src="" alt="" style="display:none"><span class="nfb" id="nLf3">📚</span></div>
+      <div class="nav-n" id="nN3">Librairie Rayen</div>
+    </div>
+    <div class="nav-acts"><button class="nbtn" onclick="go('p2')" data-t="backbooks">← Retour</button></div>
+  </nav>
+  <div class="pbody">
+    <div class="phead"><h1 data-t="p3title">Finaliser la commande</h1><p data-t="p3sub">Vérifiez votre sélection, remplissez vos coordonnées et confirmez.</p></div>
+    <div class="co-grid">
+      <div>
+        <div class="cocard">
+          <div class="coh"><span class="dot"></span><span data-t="yourinfo">Vos informations</span></div>
+          <div class="fgrp"><label data-t="fullname">Nom complet</label><input type="text" id="fname" placeholder="Ahmed Ben Salah" oninput="syncCard()"></div>
+          <div class="frow">
+            <div class="fgrp"><label data-t="phone">Téléphone</label><input type="tel" id="fphone" placeholder="+216 XX XXX XXX"></div>
+            <div class="fgrp"><label data-t="emaill">Email (optionnel)</label><input type="email" id="femail" placeholder="ahmed@email.com"></div>
+          </div>
+          <div class="fgrp"><label data-t="addresslbl">Adresse de livraison</label><textarea id="faddr" placeholder="Rue, Ville, Code postal, Gouvernorat..."></textarea></div>
+        </div>
+        <div class="cocard">
+          <div class="coh"><span class="dot"></span><span data-t="paymethod">Mode de paiement</span></div>
+          <div class="ptabs">
+            <button class="ptab on" onclick="switchPay('visa')">💳 Visa Card</button>
+            <button class="ptab" onclick="switchPay('edinar')">🇹🇳 E-Dinar</button>
+            <button class="ptab" onclick="switchPay('cash')">💵 <span data-t="cash">Espèces</span></button>
+          </div>
+          <div class="ppanel on" id="pp-visa">
+            <div class="card-vis">
+              <div class="cv-chip"></div>
+              <div class="cv-num" id="cvNum">•••• •••• •••• ••••</div>
+              <div class="cv-foot">
+                <div><div style="font-size:.58rem;opacity:.6;margin-bottom:2px" data-t="holder">TITULAIRE</div><div id="cvName" style="font-family:'Sora',sans-serif;font-weight:700;font-size:.8rem">VOTRE NOM</div></div>
+                <div style="text-align:right"><div style="font-size:.58rem;opacity:.6;margin-bottom:2px">EXPIRE</div><div id="cvExp" style="font-family:'Sora',sans-serif;font-weight:700;font-size:.8rem">MM/AA</div></div>
+              </div>
+            </div>
+            <div class="fgrp"><label data-t="cardnum">Numéro de carte</label><input type="text" id="vc-n" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this);syncCard()"></div>
+            <div class="frow">
+              <div class="fgrp"><label data-t="expiry">Expiration</label><input type="text" id="vc-e" placeholder="MM/AA" maxlength="5" oninput="fmtExp(this);syncCard()"></div>
+              <div class="fgrp"><label>CVV</label><input type="text" id="vc-c" placeholder="•••" maxlength="3"></div>
+            </div>
+          </div>
+          <div class="ppanel" id="pp-edinar">
+            <div class="edin-vis">
+              <div style="font-family:'Sora',sans-serif;font-size:.98rem;font-weight:700">🇹🇳 Carte E-Dinar</div>
+              <div><div style="font-family:'Sora',sans-serif;font-size:.88rem;letter-spacing:.18em;opacity:.85" id="edNum">•••• •••• •••• ••••</div><div style="font-size:.68rem;opacity:.6;margin-top:3px" id="edName">TITULAIRE</div></div>
+            </div>
+            <div class="fgrp"><label data-t="edinarlbl">Numéro E-Dinar</label><input type="text" id="ed-n" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this);syncEdinar()"></div>
+            <div class="fgrp"><label data-t="pinlbl">Code PIN</label><input type="password" id="ed-p" placeholder="••••" maxlength="4"></div>
+          </div>
+          <div class="ppanel" id="pp-cash">
+            <div class="cash-panel">
+              <div class="cash-ico">💵</div>
+              <div class="cash-title" data-t="cash-title">Paiement à la livraison</div>
+              <p class="cash-sub" data-t="cash-sub">Vos livres seront préparés et livrés. Vous payez en espèces à la réception. Aucune carte requise.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="cocard">
+          <div class="coh"><span class="dot"></span><span data-t="ordersumm">Récapitulatif</span></div>
+          <div id="orderSumm"></div>
+          <button class="cfm-btn" onclick="confirmOrder('order')" data-t="confirmpay">Confirmer la commande →</button>
+          <div class="sec-note">🔒 <span data-t="secured">Sécurisé · Données protégées</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PAGE 4 — RÉSERVER (simple) ════ -->
+<div class="page" id="p4">
+  <nav class="topnav">
+    <div class="nav-brand">
+      <div class="nav-lb" id="nLb4"><img id="nLi4" src="" alt="" style="display:none"><span class="nfb" id="nLf4">📚</span></div>
+      <div class="nav-n" id="nN4">Librairie Rayen</div>
+    </div>
+    <div class="nav-acts"><button class="nbtn" onclick="go('p2')" data-t="backbooks">← Retour</button></div>
+  </nav>
+  <div class="pbody" style="max-width:620px">
+    <div class="phead" style="margin-bottom:1.4rem">
+      <h1 data-t="p4title">Réserver mes livres</h1>
+      <p data-t="p4sub">Laissez vos coordonnées pour confirmer la réservation.</p>
+    </div>
+    <!-- Delivery notice -->
+    <div class="delivery-notice">
+      <div class="dn-ico">📅</div>
+      <div class="dn-text">
+        <div class="dn-title" data-t="dn-title">Délai de disponibilité</div>
+        <div class="dn-body" id="deliveryNotice">Votre commande sera disponible en magasin ou livrée à domicile sous <strong>3 à 5 jours ouvrables</strong> après confirmation de la réservation. Vous recevrez un appel de notre équipe pour vous informer de la date exacte. Librairie Rayen — Tél : +216 46.881.645.<br><br>⚠️ <strong>Un acompte de 30% du montant total</strong> est requis au moment de la réservation pour confirmer votre commande.</div>
+      </div>
+    </div>
+    <!-- Summary of selected books -->
+    <div class="res-summ" id="resSumm"></div>
+    <!-- Form -->
+    <div class="cocard" style="margin-bottom:0">
+      <div class="coh"><span class="dot" style="background:var(--green)"></span><span data-t="yourinfo">Vos informations</span></div>
+      <div class="fgrp"><label data-t="fullname">Nom complet</label><input type="text" id="rfname" placeholder="Ahmed Ben Salah"></div>
+      <div class="fgrp"><label data-t="phone">Téléphone</label><input type="tel" id="rfphone" placeholder="+216 XX XXX XXX"></div>
+      <div class="fgrp">
+        <label data-t="paymethod">Mode de paiement</label>
+        <select id="rPaySel">
+          <option value="Cash" data-t-opt="opt-cash">Espèces (à la livraison)</option>
+          <option value="Visa Card">Visa Card</option>
+          <option value="E-Dinar">Carte E-Dinar</option>
+        </select>
+      </div>
+      <button class="res-submit" onclick="confirmOrder('reserve')" data-t="confirmres">Confirmer la réservation 📌</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ADMIN LOGIN ════ -->
+<div id="al-page">
+  <div class="alcard">
+    <div class="alcard-ico">🔐</div>
+    <h2 data-t="adminlogin">Accès Admin</h2>
+    <p data-t="adminloginsub">Entrez vos identifiants pour accéder au tableau de bord.</p>
+    <input class="alf" type="text" id="al-u" placeholder="Identifiant">
+    <input class="alf" type="password" id="al-p" placeholder="Mot de passe">
+    <button class="al-sub" onclick="doLogin()" data-t="signin">Se connecter</button>
+    <div class="al-err" id="alerr"></div>
+    <button onclick="go('p1')" style="margin-top:.7rem;background:none;border:none;color:var(--tx3);cursor:pointer;font-size:.78rem;text-decoration:underline" data-t="backsite">← Retour au site</button>
+  </div>
+</div>
+
+<!-- ════ ADMIN DASHBOARD ════ -->
+<div id="adm-page">
+  <div class="adm-nav">
+    <div class="adm-brand">
+      <div class="adm-lb" id="aLb"><img id="aLi" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover"><span class="afb" id="aLf">📚</span></div>
+      <div class="adm-n" id="aN">Librairie Rayen</div>
+      <span class="adm-tag">ADMIN</span>
+    </div>
+    <button class="adm-out" onclick="logout()" data-t="signout">Déconnexion →</button>
+  </div>
+  <div class="adm-tabs">
+    <button class="atab on" onclick="aTab(0)">📊 <span data-t="tab-dash">Tableau de bord</span></button>
+    <button class="atab" onclick="aTab(1)">📋 <span data-t="tab-res">Commandes</span></button>
+    <button class="atab" onclick="aTab(2)">📌 <span data-t="tab-resv">Réservations</span></button>
+    <button class="atab" onclick="aTab(3)">👥 <span data-t="tab-cli">Clients</span></button>
+    <button class="atab" onclick="aTab(4)">🧾 <span data-t="tab-rec">Reçus</span></button>
+    <button class="atab" onclick="aTab(5)">⚙️ <span data-t="tab-set">Paramètres</span></button>
+  </div>
+  <div class="abody">
+    <div class="tpanel on" id="tp-0"><div class="stats-row" id="statsRow"></div><div id="recentWrap"></div></div>
+    <div class="tpanel" id="tp-1"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th></tr></thead><tbody id="ordBody"></tbody></table></div></div>
+    <div class="tpanel" id="tp-2"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th></tr></thead><tbody id="resvBody"></tbody></table></div></div>
+    <div class="tpanel" id="tp-3"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>Commandes</th><th>Dépensé</th><th>Dernière</th></tr></thead><tbody id="cliBody"></tbody></table></div></div>
+    <div class="tpanel" id="tp-4"><div class="sec-h">🧾 <span data-t="receipts-list">Tous les reçus</span></div><div class="twrap" id="recWrap"></div></div>
+    <div class="tpanel" id="tp-5">
+      <div class="set-grid">
+        <!-- Identity -->
+        <div class="set-card">
+          <h3>🏷️ Identité de la librairie</h3>
+          <div class="logo-drop" onclick="document.getElementById('logoFile').click()">
+            <div class="logo-prev"><img id="lpImg" src="" alt="" style="display:none"><span class="lpfb" id="lpFb">📚</span></div>
+            <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.8rem;color:var(--orange)" data-t="clickupload">Cliquer pour télécharger le logo</div>
+            <div style="font-size:.68rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
+          </div>
+          <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+          <div class="srow"><span class="srow-lbl">Nom</span><input class="sinp" id="s-name" value="Librairie Rayen"></div>
+          <div class="srow"><span class="srow-lbl">Accroche</span><input class="sinp" id="s-tag" value="Ain Zaghouan · Tunis 2045"></div>
+          <div class="srow"><span class="srow-lbl">Téléphone</span><input class="sinp" id="s-tel" value="24 07 73 19"></div>
+          <div class="srow"><span class="srow-lbl">Matricule Fiscal</span><input class="sinp" id="s-mf" value="1327827/GAM/000"></div>
+          <div class="srow"><span class="srow-lbl">Adresse</span><input class="sinp" id="s-addr" value="Ain Zaghouan, Tunis 2045"></div>
+          <button class="save-btn" onclick="saveIdentity()">💾 Sauvegarder</button>
+        </div>
+        <!-- Texts & Fees -->
+        <div class="set-card">
+          <h3>✏️ Textes & Frais</h3>
+          <div class="srow"><span class="srow-lbl">Sous-titre héro</span><input class="sinp" id="s-hsub" value="Parcourez par école et niveau, payez en toute sécurité."></div>
+          <div class="srow"><span class="srow-lbl">Frais de livraison (TND)</span><input class="sinp" id="s-del" type="number" step="0.5" value="3.000"></div>
+          <div class="srow"><span class="srow-lbl">Note de livraison</span><input class="sinp" id="s-dnote" value="3 à 5 jours ouvrables après confirmation."></div>
+          <button class="save-btn" onclick="saveTexts()">💾 Sauvegarder</button>
+        </div>
+        <!-- Order Button Control -->
+        <div class="set-card">
+          <h3>🛒 Bouton Commander</h3>
+          <div class="srow" style="align-items:center;justify-content:space-between">
+            <div>
+              <span class="srow-lbl" style="display:block;margin-bottom:3px">Activer la commande en ligne</span>
+              <span id="ord-status-lbl" style="font-size:.75rem;color:var(--tx3)">Les clients peuvent passer commande</span>
+            </div>
+            <label class="tog-wrap" title="Activer / Désactiver le bouton Commander">
+              <input type="checkbox" id="tog-order" checked onchange="toggleOrderMode(this.checked)">
+              <span class="tog-track"><span class="tog-thumb"></span></span>
+            </label>
+          </div>
+          <div id="ord-alert" style="display:none;margin-top:.7rem;padding:9px 13px;background:#FEF0E8;border:1.5px solid var(--orange);border-radius:var(--rs);font-size:.8rem;color:var(--oh);font-weight:600">
+            ⚠️ Le bouton Commander est désactivé — les clients ne peuvent pas passer de commande.
+          </div>
+        </div>
+        <!-- Credentials -->
+        <div class="set-card">
+          <h3>🔐 Identifiants Admin</h3>
+          <div class="srow"><span class="srow-lbl">Identifiant</span><input class="sinp" id="s-usr" value="admin"></div>
+          <div class="srow"><span class="srow-lbl">Nouveau mot de passe</span><input class="sinp" id="s-pw" type="password" placeholder="••••••••"></div>
+          <div class="srow"><span class="srow-lbl">Confirmer</span><input class="sinp" id="s-pw2" type="password" placeholder="••••••••"></div>
+          <button class="save-btn" onclick="saveCreds()">💾 Sauvegarder</button>
+        </div>
+        <!-- Schools & Levels -->
+        <div class="set-card">
+          <h3>🏫 Écoles & Niveaux</h3>
+          <div class="sl-grid">
+            <div class="sl-col">
+              <h4>Écoles</h4>
+              <div class="tag-list" id="schoolTags"></div>
+              <div class="trow"><input class="tinp" id="newSchool" placeholder="Ajouter une école..."><button class="tadd" onclick="addSchool()">+ Add</button></div>
+            </div>
+            <div class="sl-col">
+              <h4>Niveaux par école</h4>
+              <select id="schoolForLv" onchange="renderLvTags()" style="width:100%;padding:6px 9px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.78rem;outline:none;font-family:'Inter',sans-serif;margin-bottom:.4rem;background:var(--slate)"><option value="">— Sélectionner école —</option></select>
+              <div class="tag-list" id="levelTags"></div>
+              <div class="trow"><input class="tinp" id="newLv" placeholder="Ajouter un niveau..."><button class="tadd g" onclick="addLevel()">+ Add</button></div>
+            </div>
+          </div>
+        </div>
+        <!-- Books editor -->
+        <div class="set-card" style="grid-column:1/-1">
+          <h3>📖 Livres, EANs & Prix</h3>
+          <div style="display:flex;gap:.6rem;margin-bottom:.75rem;flex-wrap:wrap">
+            <select id="edSch" onchange="updEdLv()" style="padding:7px 10px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.83rem;outline:none;font-family:'Inter',sans-serif;background:var(--slate)"><option value="">— École —</option></select>
+            <select id="edLv" onchange="renderBookEd()" style="padding:7px 10px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.83rem;outline:none;font-family:'Inter',sans-serif;background:var(--slate)"><option value="">— Niveau —</option></select>
+          </div>
+          <div id="bookEdArea" style="display:none">
+            <div class="bed-hdr"><span>Titre</span><span>EAN-13</span><span>Matière</span><span>Prix HT</span><span>Img</span><span></span></div>
+            <div id="bookRows"></div>
+            <button class="add-bk" onclick="addBookRow()">+ Ajouter un livre</button>
+            <button class="save-btn" onclick="saveBooks()" style="margin-left:.5rem">💾 Sauvegarder</button>
+          </div>
+        </div>
+        <!-- Stockage & Backup -->
+        <div class="set-card" style="grid-column:1/-1">
+          <h3>💾 Sauvegarde & Stockage</h3>
+          <p style="font-size:.8rem;color:var(--tx3);margin-bottom:1rem">Vos données sont automatiquement sauvegardées dans le navigateur après chaque modification. Vous pouvez aussi forcer une sauvegarde ou réinitialiser.</p>
+          <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:.5rem;color:var(--tx2);font-size:.9rem"><input type="checkbox" id="autoSaveChk" checked onchange="toggleAutoSave(this.checked)"> Sauvegarde automatique</label>
+            <button class="save-btn" onclick="saveDataToStorage()" style="background:var(--green)">💾 Sauvegarder maintenant</button>
+            <button class="save-btn" onclick="exportData()" style="background:var(--navy);color:white">📥 Exporter JSON</button>
+            <button class="save-btn" onclick="clearAllData()" style="background:#D63031;color:white">🗑️ Réinitialiser données</button>
+          </div>
+          <div style="margin-top:1rem;padding:.8rem;background:var(--slate);border-radius:var(--rs);font-size:.78rem;color:var(--tx3)">
+            📊 <strong>Stockage local :</strong> <span id="storageInfo">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS MODAL -->
+<div class="mback" id="succModal">
+  <div class="modal">
+    <div class="modal-ico" id="succIco">✅</div>
+    <div class="modal-title" id="succTitle">Commande confirmée</div>
+    <p class="modal-msg" id="succMsg"></p>
+    <div class="modal-btns">
+      <button class="mbtn mb-or" onclick="dlPDF()" data-t="downloadpdf">📄 Télécharger le reçu</button>
+      <button class="mbtn mb-out" onclick="closeModal()" data-t="returnhome">Retour à l'accueil</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
