@@ -312,20 +312,20 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.65rem">
             <div>
               <div style="font-size:.67rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Logo — Page principale</div>
-              <div class="logo-drop" onclick="document.getElementById('logoFile').click()">
+              <label for="logoFile" class="logo-drop" style="display:block;cursor:pointer">
                 <div class="logo-prev"><img id="lpImg" src="" alt="" style="display:none"><span class="lpfb" id="lpFb">📚</span></div>
                 <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.75rem;color:var(--orange)">Cliquer pour uploader</div>
                 <div style="font-size:.65rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
-              </div>
+              </label>
               <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="uploadLogo(this)">
             </div>
             <div>
               <div style="font-size:.67rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Logo — Barre de navigation</div>
-              <div class="logo-drop" onclick="document.getElementById('logoNavFile').click()">
+              <label for="logoNavFile" class="logo-drop" style="display:block;cursor:pointer">
                 <div class="logo-prev"><img id="lpNavImg" src="" alt="" style="display:none"><span class="lpfb" id="lpNavFb">📚</span></div>
                 <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.75rem;color:var(--orange)">Cliquer pour uploader</div>
                 <div style="font-size:.65rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
-              </div>
+              </label>
               <input type="file" id="logoNavFile" accept="image/*" style="display:none" onchange="uploadNavLogo(this)">
             </div>
           </div>
