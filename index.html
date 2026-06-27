@@ -4,11 +4,41 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Librairie Rayen</title>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Nunito:wght@400;600&family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- SVG sprite -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="icon-search" viewBox="0 0 24 24">
+    <path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </symbol>
+  <symbol id="icon-cart" viewBox="0 0 24 24">
+    <path d="M3 3h2l.8 4.8A2 2 0 0 0 7.8 10h8.4a2 2 0 0 0 1.98-1.68L20 6H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/>
+  </symbol>
+  <symbol id="icon-book-stack" viewBox="0 0 24 24">
+    <path d="M3 6h14v11H3zM21 5v13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M3 10h14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+  </symbol>
+  <symbol id="icon-phone" viewBox="0 0 24 24">
+    <path d="M22 16.92v3a1 1 0 0 1-1.11 1 19.76 19.76 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.76 19.76 0 0 1 3.09 3.11 1 1 0 0 1 4.1 2h3a1 1 0 0 1 1 .75c.12.56.33 1.1.61 1.6a1 1 0 0 1-.24 1.08L7.6 7.6a14 14 0 0 0 6 6l1.1-1.1a1 1 0 0 1 1.08-.24c.5.28 1.04.49 1.6.61a1 1 0 0 1 .75 1v3z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="icon-user" viewBox="0 0 24 24">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.4" fill="none"/>
+  </symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24">
+    <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </symbol>
+  <symbol id="icon-arrow-right" viewBox="0 0 24 24">
+    <path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </symbol>
+</svg>
 
 <!-- Draggable lang flags -->
 <div id="langBar">
@@ -19,7 +49,9 @@
 
 <!-- ════ PAGE 1 — HERO ════ -->
 <div class="page active" id="p1">
-  <div class="hero-geo"></div><div class="hero-stripe"></div>
+  <div class="hero-geo" aria-hidden="true"></div>
+  <div class="hero-bg" aria-hidden="true" style="background-image:url('https://images.unsplash.com/photo-1503264116251-35a269479413?auto=format&fit=crop&w=1600&q=80')"></div>
+  <div class="hero-stripe"></div>
   <div class="hero-body">
     <div class="hbrand">
       <div class="hlogo" id="hLogo"><img id="hLogoImg" src="" alt="" style="display:none"><span class="hfb" id="hLogoFb">📚</span></div>
@@ -30,7 +62,10 @@
     </div>
     <h1 class="hero-h1"><em data-t="h1a">Réservez</em> <span data-t="h1b">vos livres</span><br><span data-t="h1c">depuis chez vous.</span></h1>
     <p class="hero-sub" id="heroSub">Parcourez par école et niveau, choisissez vos manuels, payez en toute sécurité — sans vous déplacer.</p>
-    <button class="hero-cta" onclick="go('p2')"><span data-t="ctabtn">Parcourir les livres</span> <span class="ic">→</span></button>
+    <button class="hero-cta" onclick="go('p2')">
+      <span data-t="ctabtn">Parcourir les livres</span>
+      <svg class="icon icon-arrow-right" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+    </button>
     <div class="hmetrics">
       <div class="hm"><div class="hm-val">240+</div><div class="hm-lbl" data-t="m1">Livres disponibles</div></div>
       <div class="hm"><div class="hm-val">38</div><div class="hm-lbl" data-t="m2">Écoles partenaires</div></div>
@@ -54,7 +89,9 @@
   <div class="pbody">
     <div class="phead"><h1 data-t="p2title">Trouvez vos livres</h1><p id="p2sub">Sélectionnez votre école et votre niveau pour voir la liste des manuels.</p></div>
     <div class="srch-wrap">
-      <span class="srch-ico">🔍</span>
+      <span class="srch-ico" aria-hidden="true">
+        <svg class="icon icon-search" role="img" aria-hidden="true"><use href="#icon-search"></use></svg>
+      </span>
       <input class="srch-inp" id="srch" data-t-ph="searchph" placeholder="Rechercher — titre, matière, EAN..." oninput="doSearch(this.value)">
       <button class="srch-clr" id="srchClr" onclick="clearSearch()">✕</button>
     </div>
@@ -68,10 +105,9 @@
       <button class="fbtn" onclick="filterBooks()" data-t="search">Rechercher</button>
     </div>
     <div id="booksArea">
-      <div class="empty-state"><span class="es-ico">📚</span><div class="es-title" data-t="empty1">Sélectionnez votre école et niveau</div><p data-t="empty2">Utilisez les filtres ci-dessus pour trouver les manuels requis.</p></div>
+      <div class="empty-state"><span class="es-ico" aria-hidden="true"><svg class="icon icon-book-stack" role="img" aria-hidden="true"><use href="#icon-book-stack"></use></svg></span><div class="es-title" data-t="empty1">Sélectionnez votre école et niveau</div><p data-t="empty2">Utilisez les filtres ci-dessus pour trouver les manuels requis.</p></div>
     </div>
   </div>
-  <!-- DUAL ACTION CART BAR -->
   <div class="cart-bar" id="cartBar">
     <div class="cart-left">
       <span class="cbadge" id="cbadge">0 article(s)</span>
@@ -79,16 +115,18 @@
     </div>
     <div class="cart-actions">
       <button class="cart-btn btn-reserve" id="btnRes" onclick="go('p4')" disabled>
-        📌 <span data-t="butnres">Réserver</span>
+        <svg class="icon icon-check" aria-hidden="true"><use href="#icon-check"></use></svg>
+        <span data-t="butnres">Réserver</span>
       </button>
       <button class="cart-btn btn-order" id="btnOrd" onclick="go('p3')" disabled>
-        🛒 <span data-t="butnord">Commander</span>
+        <svg class="icon icon-cart" aria-hidden="true"><use href="#icon-cart"></use></svg>
+        <span data-t="butnord">Commander</span>
       </button>
     </div>
   </div>
 </div>
 
-<!-- ════ PAGE 3 — COMMANDER (full checkout) ════ -->
+<!-- ════ PAGE 3 — COMMANDER ════ -->
 <div class="page" id="p3">
   <nav class="topnav">
     <div class="nav-brand">
@@ -161,7 +199,7 @@
   </div>
 </div>
 
-<!-- ════ PAGE 4 — RÉSERVER (simple) ════ -->
+<!-- ════ PAGE 4 — RÉSERVER ════ -->
 <div class="page" id="p4">
   <nav class="topnav">
     <div class="nav-brand">
@@ -175,30 +213,55 @@
       <h1 data-t="p4title">Réserver mes livres</h1>
       <p data-t="p4sub">Laissez vos coordonnées pour confirmer la réservation.</p>
     </div>
-    <!-- Delivery notice -->
     <div class="delivery-notice">
-      <div class="dn-ico">📅</div>
+      <div class="dn-ico">🚚</div>
       <div class="dn-text">
         <div class="dn-title" data-t="dn-title">Délai de disponibilité</div>
         <div class="dn-body" id="deliveryNotice">Votre commande sera disponible en magasin ou livrée à domicile sous <strong>3 à 5 jours ouvrables</strong> après confirmation de la réservation. Vous recevrez un appel de notre équipe pour vous informer de la date exacte. Librairie Rayen — Tél : +216 46.881.645.<br><br>⚠️ <strong>Un acompte de 30% du montant total</strong> est requis au moment de la réservation pour confirmer votre commande.</div>
       </div>
     </div>
-    <!-- Summary of selected books -->
     <div class="res-summ" id="resSumm"></div>
-    <!-- Form -->
     <div class="cocard" style="margin-bottom:0">
       <div class="coh"><span class="dot" style="background:var(--green)"></span><span data-t="yourinfo">Vos informations</span></div>
-      <div class="fgrp"><label data-t="fullname">Nom complet</label><input type="text" id="rfname" placeholder="Ahmed Ben Salah"></div>
+      <div class="fgrp"><label data-t="fullname">Nom complet</label><input type="text" id="rfname" placeholder="Ahmed Ben Salah" oninput="syncResCard();syncResEdinar()"></div>
       <div class="fgrp"><label data-t="phone">Téléphone</label><input type="tel" id="rfphone" placeholder="+216 XX XXX XXX"></div>
-      <div class="fgrp">
-        <label data-t="paymethod">Mode de paiement</label>
-        <select id="rPaySel">
-          <option value="Cash" data-t-opt="opt-cash">Espèces (à la livraison)</option>
-          <option value="Visa Card">Visa Card</option>
-          <option value="E-Dinar">Carte E-Dinar</option>
-        </select>
+      <div class="coh" style="margin-top:.8rem"><span class="dot" style="background:var(--green)"></span><span data-t="paymethod">Mode de paiement</span></div>
+      <div class="ptabs">
+        <button class="ptab on" id="rtab-cash" onclick="switchResPay('cash')">💵 <span data-t="cash">Espèces</span></button>
+        <button class="ptab" id="rtab-visa" onclick="switchResPay('visa')">💳 Visa Card</button>
+        <button class="ptab" id="rtab-edinar" onclick="switchResPay('edinar')">🇹🇳 E-Dinar</button>
       </div>
-      <button class="res-submit" onclick="confirmOrder('reserve')" data-t="confirmres">Confirmer la réservation 📌</button>
+      <div class="ppanel on" id="rp-cash">
+        <div class="cash-panel">
+          <div class="cash-ico">💵</div>
+          <div class="cash-title" data-t="cash-title">Paiement à la livraison</div>
+          <p class="cash-sub" data-t="cash-sub">Vos livres seront préparés et livrés. Vous payez en espèces à la réception.</p>
+        </div>
+      </div>
+      <div class="ppanel" id="rp-visa">
+        <div class="card-vis">
+          <div class="cv-chip"></div>
+          <div class="cv-num" id="rcvNum">•••• •••• •••• ••••</div>
+          <div class="cv-foot">
+            <div><div style="font-size:.58rem;opacity:.6;margin-bottom:2px" data-t="holder">TITULAIRE</div><div id="rcvName" style="font-family:'Sora',sans-serif;font-weight:700;font-size:.8rem">VOTRE NOM</div></div>
+            <div style="text-align:right"><div style="font-size:.58rem;opacity:.6;margin-bottom:2px">EXPIRE</div><div id="rcvExp" style="font-family:'Sora',sans-serif;font-weight:700;font-size:.8rem">MM/AA</div></div>
+          </div>
+        </div>
+        <div class="fgrp"><label data-t="cardnum">Numéro de carte</label><input type="text" id="rvc-n" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this);syncResCard()"></div>
+        <div class="frow">
+          <div class="fgrp"><label data-t="expiry">Expiration</label><input type="text" id="rvc-e" placeholder="MM/AA" maxlength="5" oninput="fmtExp(this);syncResCard()"></div>
+          <div class="fgrp"><label>CVV</label><input type="text" id="rvc-c" placeholder="•••" maxlength="3"></div>
+        </div>
+      </div>
+      <div class="ppanel" id="rp-edinar">
+        <div class="edin-vis">
+          <div style="font-family:'Sora',sans-serif;font-size:.98rem;font-weight:700">🇹🇳 Carte E-Dinar</div>
+          <div><div style="font-family:'Sora',sans-serif;font-size:.88rem;letter-spacing:.18em;opacity:.85" id="redNum">•••• •••• •••• ••••</div><div style="font-size:.68rem;opacity:.6;margin-top:3px" id="redName">TITULAIRE</div></div>
+        </div>
+        <div class="fgrp"><label data-t="edinarlbl">Numéro E-Dinar</label><input type="text" id="red-n" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this);syncResEdinar()"></div>
+        <div class="fgrp"><label data-t="pinlbl">Code PIN</label><input type="password" id="red-p" placeholder="••••" maxlength="4"></div>
+      </div>
+      <button class="res-submit" onclick="confirmOrder('reserve')" data-t="confirmres">Confirmer la réservation 📋</button>
     </div>
   </div>
 </div>
@@ -229,8 +292,8 @@
   </div>
   <div class="adm-tabs">
     <button class="atab on" onclick="aTab(0)">📊 <span data-t="tab-dash">Tableau de bord</span></button>
-    <button class="atab" onclick="aTab(1)">📋 <span data-t="tab-res">Commandes</span></button>
-    <button class="atab" onclick="aTab(2)">📌 <span data-t="tab-resv">Réservations</span></button>
+    <button class="atab" onclick="aTab(1)">📦 <span data-t="tab-res">Commandes</span></button>
+    <button class="atab" onclick="aTab(2)">📋 <span data-t="tab-resv">Réservations</span></button>
     <button class="atab" onclick="aTab(3)">👥 <span data-t="tab-cli">Clients</span></button>
     <button class="atab" onclick="aTab(4)">🧾 <span data-t="tab-rec">Reçus</span></button>
     <button class="atab" onclick="aTab(5)">⚙️ <span data-t="tab-set">Paramètres</span></button>
@@ -246,12 +309,26 @@
         <!-- Identity -->
         <div class="set-card">
           <h3>🏷️ Identité de la librairie</h3>
-          <div class="logo-drop" onclick="document.getElementById('logoFile').click()">
-            <div class="logo-prev"><img id="lpImg" src="" alt="" style="display:none"><span class="lpfb" id="lpFb">📚</span></div>
-            <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.8rem;color:var(--orange)" data-t="clickupload">Cliquer pour télécharger le logo</div>
-            <div style="font-size:.68rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.65rem">
+            <div>
+              <div style="font-size:.67rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Logo — Page principale</div>
+              <div class="logo-drop" onclick="document.getElementById('logoFile').click()">
+                <div class="logo-prev"><img id="lpImg" src="" alt="" style="display:none"><span class="lpfb" id="lpFb">📚</span></div>
+                <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.75rem;color:var(--orange)">Cliquer pour uploader</div>
+                <div style="font-size:.65rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
+              </div>
+              <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+            </div>
+            <div>
+              <div style="font-size:.67rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Logo — Barre de navigation</div>
+              <div class="logo-drop" onclick="document.getElementById('logoNavFile').click()">
+                <div class="logo-prev"><img id="lpNavImg" src="" alt="" style="display:none"><span class="lpfb" id="lpNavFb">📚</span></div>
+                <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.75rem;color:var(--orange)">Cliquer pour uploader</div>
+                <div style="font-size:.65rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
+              </div>
+              <input type="file" id="logoNavFile" accept="image/*" style="display:none" onchange="uploadNavLogo(this)">
+            </div>
           </div>
-          <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="uploadLogo(this)">
           <div class="srow"><span class="srow-lbl">Nom</span><input class="sinp" id="s-name" value="Librairie Rayen"></div>
           <div class="srow"><span class="srow-lbl">Accroche</span><input class="sinp" id="s-tag" value="Ain Zaghouan · Tunis 2045"></div>
           <div class="srow"><span class="srow-lbl">Téléphone</span><input class="sinp" id="s-tel" value="24 07 73 19"></div>
@@ -286,7 +363,7 @@
         </div>
         <!-- Credentials -->
         <div class="set-card">
-          <h3>🔐 Identifiants Admin</h3>
+          <h3>🔑 Identifiants Admin</h3>
           <div class="srow"><span class="srow-lbl">Identifiant</span><input class="sinp" id="s-usr" value="admin"></div>
           <div class="srow"><span class="srow-lbl">Nouveau mot de passe</span><input class="sinp" id="s-pw" type="password" placeholder="••••••••"></div>
           <div class="srow"><span class="srow-lbl">Confirmer</span><input class="sinp" id="s-pw2" type="password" placeholder="••••••••"></div>
@@ -311,7 +388,7 @@
         </div>
         <!-- Books editor -->
         <div class="set-card" style="grid-column:1/-1">
-          <h3>📖 Livres, EANs & Prix</h3>
+          <h3>📚 Livres, EANs & Prix</h3>
           <div style="display:flex;gap:.6rem;margin-bottom:.75rem;flex-wrap:wrap">
             <select id="edSch" onchange="updEdLv()" style="padding:7px 10px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.83rem;outline:none;font-family:'Inter',sans-serif;background:var(--slate)"><option value="">— École —</option></select>
             <select id="edLv" onchange="renderBookEd()" style="padding:7px 10px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.83rem;outline:none;font-family:'Inter',sans-serif;background:var(--slate)"><option value="">— Niveau —</option></select>
