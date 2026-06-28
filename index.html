@@ -122,6 +122,10 @@
         <svg class="icon icon-cart" aria-hidden="true"><use href="#icon-cart"></use></svg>
         <span data-t="butnord">Commander</span>
       </button>
+      <button class="cart-btn btn-devis" id="btnDevis" onclick="go('p5')" disabled>
+        📋
+        <span>Devis</span>
+      </button>
     </div>
   </div>
 </div>
@@ -266,6 +270,31 @@
   </div>
 </div>
 
+<!-- ════ PAGE 5 — DEVIS ════ -->
+<div class="page" id="p5">
+  <nav class="topnav">
+    <div class="nav-brand">
+      <div class="nav-lb" id="nLb5"><img id="nLi5" src="" alt="" style="display:none"><span class="nfb" id="nLf5">📚</span></div>
+      <div class="nav-n" id="nN5">Librairie Rayen</div>
+    </div>
+    <div class="nav-acts"><button class="nbtn" onclick="go('p2')">← Retour</button></div>
+  </nav>
+  <div class="pbody" style="max-width:680px">
+    <div class="phead" style="margin-bottom:1.4rem">
+      <h1>📋 Mon Devis</h1>
+      <p>Consultez votre devis et téléchargez-le en PDF.</p>
+    </div>
+    <div class="cocard" style="margin-bottom:1.2rem">
+      <div class="coh"><span class="dot"></span><span>Vos informations <em style="font-size:.75rem;font-weight:400;color:var(--tx3)">(optionnel)</em></span></div>
+      <div class="fgrp"><label>Nom complet</label><input type="text" id="dv-name" placeholder="Ahmed Ben Salah"></div>
+      <div class="fgrp"><label>Téléphone</label><input type="tel" id="dv-phone" placeholder="+216 XX XXX XXX"></div>
+    </div>
+    <div id="devisSumm"></div>
+    <button class="cfm-btn" onclick="dlDevisPDF()" style="margin-top:1.2rem">📄 Télécharger le Devis PDF</button>
+    <div class="sec-note" style="margin-top:.7rem">📋 <span>Devis non contractuel · Valable 30 jours</span></div>
+  </div>
+</div>
+
 <!-- ════ ADMIN LOGIN ════ -->
 <div id="al-page">
   <div class="alcard">
@@ -300,8 +329,8 @@
   </div>
   <div class="abody">
     <div class="tpanel on" id="tp-0"><div class="stats-row" id="statsRow"></div><div id="recentWrap"></div></div>
-    <div class="tpanel" id="tp-1"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th></tr></thead><tbody id="ordBody"></tbody></table></div></div>
-    <div class="tpanel" id="tp-2"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th></tr></thead><tbody id="resvBody"></tbody></table></div></div>
+    <div class="tpanel" id="tp-1"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead><tbody id="ordBody"></tbody></table></div></div>
+    <div class="tpanel" id="tp-2"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead><tbody id="resvBody"></tbody></table></div></div>
     <div class="tpanel" id="tp-3"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>Commandes</th><th>Dépensé</th><th>Dernière</th></tr></thead><tbody id="cliBody"></tbody></table></div></div>
     <div class="tpanel" id="tp-4"><div class="sec-h">🧾 <span data-t="receipts-list">Tous les reçus</span></div><div class="twrap" id="recWrap"></div></div>
     <div class="tpanel" id="tp-5">
