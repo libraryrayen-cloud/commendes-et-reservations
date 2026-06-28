@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <link rel="icon" href="logo.png" type="image/png">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 
@@ -298,6 +298,10 @@
 
 <!-- ════ ADMIN LOGIN ════ -->
 <div id="al-page">
+  <div style="position:absolute;top:16px;left:18px;display:flex;align-items:center;gap:9px">
+    <div class="nav-lb"><img id="alLi" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover"><span id="alLf">📚</span></div>
+    <span style="font-family:'Montserrat',sans-serif;font-size:.88rem;font-weight:700;color:#fff;opacity:.85" id="alN">Librairie Rayen</span>
+  </div>
   <div class="alcard">
     <div class="alcard-ico">🔐</div>
     <h2 data-t="adminlogin">Accès Admin</h2>
@@ -340,15 +344,30 @@
         <div class="set-card">
           <h3>🏷️ Identité de la librairie</h3>
           <div style="margin-bottom:.65rem">
-            <div style="font-size:.67rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">🖼️ Logo de la librairie</div>
-            <div style="font-size:.62rem;color:var(--tx3);margin-bottom:6px">S'affiche sur toutes les pages + onglet du navigateur</div>
-            <label for="logoFile" class="logo-drop" style="display:block;cursor:pointer;max-width:180px">
-              <div class="logo-prev"><img id="lpImg" src="" alt="" style="display:none"><span class="lpfb" id="lpFb">📚</span></div>
-              <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.75rem;color:var(--orange)">Cliquer pour uploader</div>
-              <div style="font-size:.65rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
-            </label>
-            <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="uploadLogo(this)">
-            <button onclick="clearLogo()" style="margin-top:6px;background:#FEE2E2;border:none;border-radius:6px;padding:5px 12px;font-size:.7rem;color:#B91C1C;cursor:pointer;font-weight:600">🗑️ Effacer le logo</button>
+            <div style="display:flex;gap:18px;flex-wrap:wrap">
+              <div>
+                <div style="font-size:.67rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">🖼️ Logo page d'accueil</div>
+                <div style="font-size:.62rem;color:var(--tx3);margin-bottom:6px">Grand logo affiché sur la page principale</div>
+                <label for="logoFile" class="logo-drop" style="display:block;cursor:pointer;max-width:180px">
+                  <div class="logo-prev"><img id="lpImg" src="" alt="" style="display:none"><span class="lpfb" id="lpFb">📚</span></div>
+                  <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.75rem;color:var(--orange)">Cliquer pour uploader</div>
+                  <div style="font-size:.65rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
+                </label>
+                <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+                <button onclick="clearLogo()" style="margin-top:6px;background:#FEE2E2;border:none;border-radius:6px;padding:5px 12px;font-size:.7rem;color:#B91C1C;cursor:pointer;font-weight:600">🗑️ Effacer</button>
+              </div>
+              <div>
+                <div style="font-size:.67rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">🔵 Logo barre de navigation</div>
+                <div style="font-size:.62rem;color:var(--tx3);margin-bottom:6px">Petit logo rond affiché en haut des pages</div>
+                <label for="logoNavFile" class="logo-drop" style="display:block;cursor:pointer;max-width:180px">
+                  <div class="logo-prev"><img id="lpNavImg" src="" alt="" style="display:none"><span class="lpfb" id="lpNavFb">🔵</span></div>
+                  <div style="font-family:'Sora',sans-serif;font-weight:600;font-size:.75rem;color:var(--orange)">Cliquer pour uploader</div>
+                  <div style="font-size:.65rem;color:var(--tx3);margin-top:2px">PNG · JPG · SVG</div>
+                </label>
+                <input type="file" id="logoNavFile" accept="image/*" style="display:none" onchange="uploadNavLogo(this)">
+                <button onclick="clearNavLogo()" style="margin-top:6px;background:#FEE2E2;border:none;border-radius:6px;padding:5px 12px;font-size:.7rem;color:#B91C1C;cursor:pointer;font-weight:600">🗑️ Effacer</button>
+              </div>
+            </div>
           </div>
           <div class="srow"><span class="srow-lbl">Nom</span><input class="sinp" id="s-name" value="Librairie Rayen"></div>
           <div class="srow"><span class="srow-lbl">Accroche</span><input class="sinp" id="s-tag" value="Ain Zaghouan · Tunis 2045"></div>
@@ -453,6 +472,6 @@
   </div>
 </div>
 
-<script src="script.js?v=5"></script>
+<script src="script.js?v=7"></script>
 </body>
 </html>
