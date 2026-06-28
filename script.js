@@ -37,14 +37,35 @@ try {
     syncLogos();
     syncOrderToggle();
     updateDeliveryNotice();
+    const adm = document.getElementById('adm-page');
+    if(adm && adm.classList.contains('active')){
+      if(curAT===0)renderDash();
+      if(curAT===5)updateStorageInfo();
+      [['s-name',libName],['s-tag',libTag],['s-tel',libTel],['s-mf',libMF],['s-addr',libAddr]].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v;});
+      const sdel=document.getElementById('s-del');if(sdel)sdel.value=deliveryFee.toFixed(3);
+    }
   });
   fbDb.ref('librairie/orders').on('value', snap => {
     const data = snap.val();
-    if (data) orders = Object.values(data);
+    orders = data ? Object.values(data) : [];
+    const adm = document.getElementById('adm-page');
+    if(adm && adm.classList.contains('active')){
+      if(curAT===0)renderDash();
+      if(curAT===1)renderOrders();
+      if(curAT===3)renderClients();
+      if(curAT===4)renderReceipts();
+    }
   });
   fbDb.ref('librairie/reservations').on('value', snap => {
     const data = snap.val();
-    if (data) reservations = Object.values(data);
+    reservations = data ? Object.values(data) : [];
+    const adm = document.getElementById('adm-page');
+    if(adm && adm.classList.contains('active')){
+      if(curAT===0)renderDash();
+      if(curAT===2)renderResvs();
+      if(curAT===3)renderClients();
+      if(curAT===4)renderReceipts();
+    }
   });
 } catch(e) {
   console.warn('Firebase non configuré — utilisation localStorage uniquement');
