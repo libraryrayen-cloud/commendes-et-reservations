@@ -33,10 +33,10 @@ try {
     if (data.logoNavUrl !== undefined) logoNavUrl = data.logoNavUrl;
     if (data.adminUser !== undefined) adminUser = data.adminUser;
     if (data.adminPass !== undefined) adminPass = data.adminPass;
+    syncLogos();
     if (!fbReady) { fbReady = true; return; }
     buildSchoolOpts();
     if (_books.length) renderGrid(_books);
-    syncLogos();
     syncOrderToggle();
     updateDeliveryNotice();
     const adm = document.getElementById('adm-page');
