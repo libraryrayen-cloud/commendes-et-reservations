@@ -31,6 +31,8 @@ try {
     if (typeof data.orderEnabled !== 'undefined') orderEnabled = !!data.orderEnabled;
     if (data.logoUrl !== undefined) logoUrl = data.logoUrl;
     if (data.logoNavUrl !== undefined) logoNavUrl = data.logoNavUrl;
+    if (data.adminUser !== undefined) adminUser = data.adminUser;
+    if (data.adminPass !== undefined) adminPass = data.adminPass;
     if (!fbReady) { fbReady = true; return; }
     buildSchoolOpts();
     if (_books.length) renderGrid(_books);
@@ -46,8 +48,8 @@ try {
     }
   });
   fbDb.ref('librairie/orders').on('value', snap => {
-    const data = snap.val();
-    orders = data ? Object.values(data) : [];
+    orders = snap.val() ? Object.values(snap.val()) : [];
+    try{const d=JSON.parse(localStorage.getItem('librairie_rayen_db')||'{}');d.orders=orders;localStorage.setItem('librairie_rayen_db',JSON.stringify(d));}catch(e){}
     const adm = document.getElementById('adm-page');
     if(adm && adm.classList.contains('active')){
       if(curAT===0)renderDash();
@@ -57,8 +59,8 @@ try {
     }
   });
   fbDb.ref('librairie/reservations').on('value', snap => {
-    const data = snap.val();
-    reservations = data ? Object.values(data) : [];
+    reservations = snap.val() ? Object.values(snap.val()) : [];
+    try{const d=JSON.parse(localStorage.getItem('librairie_rayen_db')||'{}');d.reservations=reservations;localStorage.setItem('librairie_rayen_db',JSON.stringify(d));}catch(e){}
     const adm = document.getElementById('adm-page');
     if(adm && adm.classList.contains('active')){
       if(curAT===0)renderDash();
@@ -163,7 +165,7 @@ function saveDataToStorage(){
   const data={orders,reservations,schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,autoSave,adminUser,adminPass,logoUrl,logoNavUrl,heroSubTxt,deliveryNote};
   try{localStorage.setItem('librairie_rayen_db',JSON.stringify(data));}catch(e){console.error('❌ Erreur localStorage:',e);}
   if(fbDb){
-    const cfg={schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,deliveryNote,heroSubTxt,orderEnabled,logoUrl,logoNavUrl};
+    const cfg={schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,deliveryNote,heroSubTxt,orderEnabled,logoUrl,logoNavUrl,adminUser,adminPass};
     fbDb.ref('librairie/config').set(cfg).catch(e=>console.error('❌ Erreur Firebase:',e));
     const ordMap={};orders.forEach((o,i)=>ordMap['o'+i]=o);fbDb.ref('librairie/orders').set(orders.length?ordMap:null).catch(()=>{});
     const resMap={};reservations.forEach((r,i)=>resMap['r'+i]=r);fbDb.ref('librairie/reservations').set(reservations.length?resMap:null).catch(()=>{});
