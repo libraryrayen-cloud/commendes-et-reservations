@@ -34,7 +34,7 @@ try {
     if (data.adminUser !== undefined) adminUser = data.adminUser;
     if (data.adminPass !== undefined) adminPass = data.adminPass;
     syncLogos();
-    if (!fbReady) { fbReady = true; return; }
+    if (!fbReady) { fbReady = true; buildSchoolOpts(); return; }
     buildSchoolOpts();
     if (_books.length) renderGrid(_books);
     syncOrderToggle();
