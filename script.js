@@ -11,14 +11,16 @@ const firebaseConfig = {
   appId: "1:796215384669:web:83091e3d64ba186c684bb4"
 };
 let fbDb = null;
+let fbStorage = null;
 let fbReady = false;
 try {
   firebase.initializeApp(firebaseConfig);
   fbDb = firebase.database();
+  fbStorage = firebase.storage();
   fbDb.ref('librairie/config').on('value', snap => {
     const data = snap.val();
     if (!data) return;
-    if (data.booksDB) booksDB = data.booksDB;
+    if (data.booksDB) { booksDB = data.booksDB; loadImgsIntoBooks(); if(filtSchool&&filtLv) _books = booksDB[gk(filtSchool,filtLv)]||[]; }
     if (data.schoolLevels) schoolLevels = data.schoolLevels;
     if (data.libName !== undefined) libName = data.libName;
     if (data.libTag !== undefined) libTag = data.libTag;
@@ -68,6 +70,13 @@ try {
       if(curAT===3)renderClients();
       if(curAT===4)renderReceipts();
     }
+  });
+  fbDb.ref('librairie/bookImages').on('value', snap => {
+    const imgs = snap.val();
+    if(!imgs) return;
+    try{localStorage.setItem('librairie_rayen_imgs',JSON.stringify(imgs));}catch(e){}
+    Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(imgs[b.id])b.img=imgs[b.id];});});
+    if(filtSchool&&filtLv){_books=booksDB[gk(filtSchool,filtLv)]||[];if(_books.length)renderGrid(_books);}
   });
 } catch(e) {
   console.warn('Firebase non configuré — utilisation localStorage uniquement');
@@ -158,22 +167,26 @@ function buildAdmSchOpts(){const sel=document.getElementById('edSch');const cur=
 function updEdLv(){const school=document.getElementById('edSch').value;const ls=document.getElementById('edLv');ls.innerHTML='<option value="">— Niveau —</option>';if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{const o=document.createElement('option');o.value=lv;o.textContent=lv;ls.appendChild(o);});document.getElementById('bookEdArea').style.display='none';}
 function renderBookEd(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const area=document.getElementById('bookEdArea');if(!school||!lv){area.style.display='none';return;}area.style.display='block';const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];document.getElementById('bookRows').innerHTML=booksDB[key].map((b,i)=>`<div class="bed-row" id="bedr-${i}"><input class="bed-inp" value="${b.title}" id="bt-${i}" placeholder="Titre"><input class="bed-inp" value="${b.ean||''}" id="be-${i}" placeholder="EAN-13" maxlength="13"><input class="bed-inp" value="${b.subject}" id="bs-${i}" placeholder="Matière"><input class="bed-inp" type="number" step="0.5" value="${b.priceHT.toFixed(3)}" id="bp-${i}"><div id="bth-${i}" style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:${b.color};display:flex;align-items:center;justify-content:center;font-size:.85rem;cursor:pointer;flex-shrink:0" onclick="document.getElementById('bfi-${i}').click()" title="Photo de couverture">${b.img?`<img src="${b.img}" style="width:100%;height:100%;object-fit:cover">`:'📖'}</div><input type="file" id="bfi-${i}" accept="image/*" style="display:none" onchange="uplBkImg(this,${i})"><button class="del-btn" onclick="delBkRow(${i})">✕</button></div>`).join('');}
 function compressImg(dataUrl,maxW,maxH,quality,cb){const img=new Image();img.onload=()=>{const scale=Math.min(1,maxW/img.width,maxH/img.height);const w=Math.round(img.width*scale);const h=Math.round(img.height*scale);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',quality));};img.src=dataUrl;}
-function uplBkImg(input,i){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{compressImg(e.target.result,400,530,0.75,compressed=>{const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(booksDB[key]&&booksDB[key][i]){booksDB[key][i].img=compressed;const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${compressed}" style="width:100%;height:100%;object-fit:cover">`;if(autoSave)saveDataToStorage();if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}showToast('✅ Couverture mise à jour');}});};rd.readAsDataURL(f);}
+function uplBkImg(input,i){const f=input.files[0];if(!f)return;const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;const bookId=booksDB[key][i].id;showToast('⏳ Upload en cours...');const rd=new FileReader();rd.onload=e=>{compressImg(e.target.result,400,530,0.80,compressed=>{booksDB[key][i].img=compressed;const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${compressed}" style="width:100%;height:100%;object-fit:cover">`;saveImgsLocally();if(fbDb){fbDb.ref('librairie/bookImages/'+bookId).set(compressed).then(()=>{showToast('✅ Photo synchronisée sur tous les PCs');}).catch(()=>{showToast('✅ Photo sauvegardée localement');});}else{showToast('✅ Couverture mise à jour');}if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}});};rd.readAsDataURL(f);}
 function addBookRow(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;if(!school||!lv)return;const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];const ean='978997'+(Math.floor(Math.random()*9000000)+1000000);booksDB[key].push({id:Date.now(),title:'Nouveau livre',ean:ean,subject:'Matière',priceHT:8.000,color:CLRS[Math.floor(Math.random()*CLRS.length)],img:''});renderBookEd();}
 function delBkRow(i){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(booksDB[key])booksDB[key].splice(i,1);renderBookEd();}
 function saveBooks(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!key||!booksDB[key])return;booksDB[key].forEach((b,i)=>{const ti=document.getElementById('bt-'+i),ei=document.getElementById('be-'+i),si=document.getElementById('bs-'+i),pi=document.getElementById('bp-'+i);if(ti)b.title=ti.value;if(ei)b.ean=ei.value;if(si)b.subject=si.value;if(pi)b.priceHT=parseFloat(pi.value)||0;});if(autoSave)saveDataToStorage();if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);updateCart();}showToast('✅ Livres sauvegardés — '+school+' · '+lv);}
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('vis');setTimeout(()=>el.classList.remove('vis'),2600);}
+function saveImgsLocally(){try{const imgs={};Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(b.img)imgs[b.id]=b.img;});});localStorage.setItem('librairie_rayen_imgs',JSON.stringify(imgs));}catch(e){}}
+function loadImgsIntoBooks(){try{const imgs=JSON.parse(localStorage.getItem('librairie_rayen_imgs')||'{}');Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(imgs[b.id])b.img=imgs[b.id];});});}catch(e){}}
 function saveDataToStorage(){
+  saveImgsLocally();
   const data={orders,reservations,schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,autoSave,adminUser,adminPass,logoUrl,logoNavUrl,heroSubTxt,deliveryNote};
   try{localStorage.setItem('librairie_rayen_db',JSON.stringify(data));}catch(e){console.error('❌ Erreur localStorage:',e);}
   if(fbDb){
-    const cfg={schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,deliveryNote,heroSubTxt,orderEnabled,logoUrl,logoNavUrl,adminUser,adminPass};
-    fbDb.ref('librairie/config').set(cfg).catch(e=>console.error('❌ Erreur Firebase:',e));
+    const booksLight={};Object.keys(booksDB).forEach(k=>{booksLight[k]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject,priceHT:b.priceHT,color:b.color}));});
+    const cfg={schoolLevels,booksDB:booksLight,libName,libTag,libTel,libMF,libAddr,deliveryFee,deliveryNote,heroSubTxt,orderEnabled,logoUrl,logoNavUrl,adminUser,adminPass};
+    fbDb.ref('librairie/config').set(cfg).catch(e=>{console.error('❌ Erreur Firebase:',e);showToast('❌ Erreur Firebase: '+e.message);});
     const ordMap={};orders.forEach((o,i)=>ordMap['o'+i]=o);fbDb.ref('librairie/orders').set(orders.length?ordMap:null).catch(()=>{});
     const resMap={};reservations.forEach((r,i)=>resMap['r'+i]=r);fbDb.ref('librairie/reservations').set(reservations.length?resMap:null).catch(()=>{});
   }
 }
-function loadDataFromStorage(){try{const stored=localStorage.getItem('librairie_rayen_db');if(!stored)return;const data=JSON.parse(stored);if(data.orders)orders=data.orders;if(data.reservations)reservations=data.reservations;if(data.schoolLevels)schoolLevels=data.schoolLevels;if(data.booksDB)booksDB=data.booksDB;if(data.libName)libName=data.libName;if(data.libTag)libTag=data.libTag;if(data.libTel)libTel=data.libTel;if(data.libMF)libMF=data.libMF;if(data.libAddr)libAddr=data.libAddr;if(data.deliveryFee)deliveryFee=data.deliveryFee;if(data.remisePct)remisePct=data.remisePct;if(data.tvaPct)tvaPct=data.tvaPct;if(typeof data.autoSave!=='undefined')autoSave=!!data.autoSave;try{const cb=document.getElementById('autoSaveChk');if(cb)cb.checked=!!autoSave;}catch(e){}if(data.adminUser)adminUser=data.adminUser;if(data.adminPass)adminPass=data.adminPass;if(data.logoUrl)logoUrl=data.logoUrl;if(data.logoNavUrl)logoNavUrl=data.logoNavUrl;if(data.heroSubTxt)heroSubTxt=data.heroSubTxt;if(data.deliveryNote)deliveryNote=data.deliveryNote;}catch(e){console.error('❌ Erreur chargement:',e);}}
+function loadDataFromStorage(){try{const stored=localStorage.getItem('librairie_rayen_db');if(!stored)return;const data=JSON.parse(stored);if(data.orders)orders=data.orders;if(data.reservations)reservations=data.reservations;if(data.schoolLevels)schoolLevels=data.schoolLevels;if(data.booksDB){booksDB=data.booksDB;loadImgsIntoBooks();}if(data.libName)libName=data.libName;if(data.libTag)libTag=data.libTag;if(data.libTel)libTel=data.libTel;if(data.libMF)libMF=data.libMF;if(data.libAddr)libAddr=data.libAddr;if(data.deliveryFee)deliveryFee=data.deliveryFee;if(data.remisePct)remisePct=data.remisePct;if(data.tvaPct)tvaPct=data.tvaPct;if(typeof data.autoSave!=='undefined')autoSave=!!data.autoSave;try{const cb=document.getElementById('autoSaveChk');if(cb)cb.checked=!!autoSave;}catch(e){}if(data.adminUser)adminUser=data.adminUser;if(data.adminPass)adminPass=data.adminPass;if(data.logoUrl)logoUrl=data.logoUrl;if(data.logoNavUrl)logoNavUrl=data.logoNavUrl;if(data.heroSubTxt)heroSubTxt=data.heroSubTxt;if(data.deliveryNote)deliveryNote=data.deliveryNote;}catch(e){console.error('❌ Erreur chargement:',e);}}
 function clearAllData(){if(confirm('⚠️ Êtes-vous sûr(e) de vouloir effacer TOUTES les données ? Cette action est irréversible.')){localStorage.removeItem('librairie_rayen_db');orders=[];reservations=[];showToast('🗑️ Toutes les données ont été effacées');location.reload();}}
 function exportData(){const data={orders,reservations,schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,exportDate:new Date().toLocaleString('fr-FR')};const json=JSON.stringify(data,null,2);const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='librairie_rayen_backup_'+new Date().getTime()+'.json';a.click();URL.revokeObjectURL(url);showToast('📥 Données exportées en JSON');}
 function updateStorageInfo(){try{const stored=localStorage.getItem('librairie_rayen_db');const size=stored?((stored.length/1024).toFixed(2)+' KB'):'Aucune donnée';const recordCount='Commandes: '+orders.length+' | Réservations: '+reservations.length+' | Écoles: '+Object.keys(schoolLevels).length;document.getElementById('storageInfo').innerHTML=size+' — '+recordCount;}catch(e){}}
