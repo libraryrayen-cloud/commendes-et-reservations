@@ -327,9 +327,17 @@
       <button id="remiseToggleBtn" onclick="toggleRemise()" title="Activer / Désactiver la remise 10%" style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 14px;color:white;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s">
         🏷️ Remise 10% : <span id="remiseBadge" style="background:rgba(255,255,255,.2);border-radius:4px;padding:1px 7px">OFF</span>
       </button>
-      <button id="acompteToggleBtn" onclick="toggleAcompte()" title="Activer / Désactiver l'acompte 30% à la réservation" style="background:rgba(255,255,255,.12);border:1.5px solid #20cf9e;border-radius:999px;padding:6px 14px;color:white;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s">
-        💳 Acompte 30% : <span id="acompteBadge" style="background:#20cf9e;border-radius:4px;padding:1px 7px">ON</span>
-      </button>
+      <div style="display:flex;align-items:center;gap:0;background:rgba(255,255,255,.12);border:1.5px solid #20cf9e;border-radius:999px;overflow:hidden;transition:all .2s" id="acompteWrap">
+        <button onclick="toggleAcompte()" title="Activer / Désactiver l'acompte" style="background:none;border:none;padding:6px 12px;color:white;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap">
+          💳 Avance : <span id="acompteBadge" style="background:#20cf9e;border-radius:4px;padding:1px 7px">ON</span>
+        </button>
+        <div id="acompteInputArea" style="display:flex;align-items:center;gap:4px;padding:0 10px 0 0">
+          <input id="acompteInp" type="number" min="0" step="0.001" placeholder="30%" title="Laisser vide = 30% · Minimum 30% du total"
+            style="width:72px;padding:3px 6px;border-radius:4px;border:none;font-size:.78rem;font-weight:600;outline:none;text-align:center;background:rgba(255,255,255,.9);color:#1B1B1F"
+            oninput="validateAcompteInp(this)">
+          <span style="color:rgba(255,255,255,.7);font-size:.75rem">TND</span>
+        </div>
+      </div>
       <button class="adm-out" onclick="logout()" data-t="signout">Déconnexion →</button>
     </div>
   </div>
