@@ -267,6 +267,22 @@
         <div class="fgrp"><label data-t="edinarlbl">Numéro E-Dinar</label><input type="text" id="red-n" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this);syncResEdinar()"></div>
         <div class="fgrp"><label data-t="pinlbl">Code PIN</label><input type="password" id="red-p" placeholder="••••" maxlength="4"></div>
       </div>
+      <div style="margin-top:1rem;border-top:1px solid var(--bd);padding-top:1rem">
+        <div class="coh" style="margin-bottom:.65rem"><span class="dot" style="background:var(--orange)"></span><span>Avance souhaitée</span></div>
+        <div style="background:var(--op);border:1.5px solid var(--olt);border-radius:var(--rs);padding:.85rem 1rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem">
+            <span style="font-size:.8rem;color:var(--tx2);font-weight:500">Minimum requis (30%)</span>
+            <span id="avanceMin30" style="font-family:'Sora',sans-serif;font-weight:700;font-size:.85rem;color:var(--oh)">—</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <input type="number" id="avanceInput" min="0" step="0.001" placeholder="Laisser vide = 30% minimum"
+              style="flex:1;padding:9px 12px;border:1.5px solid var(--olt);border-radius:var(--rs);font-size:.88rem;outline:none;font-family:'Inter',sans-serif;background:white;color:var(--tx);transition:border-color .18s"
+              oninput="checkAvance(this)">
+            <span style="font-size:.85rem;font-weight:700;color:var(--oh);white-space:nowrap">TND</span>
+          </div>
+          <div id="avanceMsg" style="font-size:.75rem;margin-top:6px;color:var(--tx3)">Vous pouvez payer plus de 30% si vous le souhaitez.</div>
+        </div>
+      </div>
       <button class="res-submit" onclick="confirmOrder('reserve')" data-t="confirmres">Confirmer la réservation 📋</button>
     </div>
   </div>
