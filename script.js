@@ -30,7 +30,7 @@ try {
     if (data.libAddr !== undefined) libAddr = data.libAddr;
     if (data.deliveryFee !== undefined) deliveryFee = data.deliveryFee;
     if (data.deliveryNote !== undefined) deliveryNote = data.deliveryNote;
-    if (data.heroSubTxt !== undefined) heroSubTxt = data.heroSubTxt;
+    if (data.heroSubTxt !== undefined) { heroSubTxt = data.heroSubTxt; const hs=document.getElementById('heroSub');if(hs)hs.textContent=heroSubTxt; }
     if (typeof data.orderEnabled !== 'undefined') orderEnabled = !!data.orderEnabled;
     if (data.logoUrl !== undefined) logoUrl = data.logoUrl;
     if (data.logoNavUrl !== undefined) logoNavUrl = data.logoNavUrl;
