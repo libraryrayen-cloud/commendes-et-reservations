@@ -32,8 +32,8 @@ try {
     if (data.deliveryNote !== undefined) deliveryNote = data.deliveryNote;
     if (data.heroSubTxt !== undefined) { heroSubTxt = data.heroSubTxt; const hs=document.getElementById('heroSub');if(hs)hs.textContent=heroSubTxt; }
     if (typeof data.orderEnabled !== 'undefined') orderEnabled = !!data.orderEnabled;
-    if (data.logoUrl !== undefined) logoUrl = data.logoUrl;
-    if (data.logoNavUrl !== undefined) logoNavUrl = data.logoNavUrl;
+    if (data.logoUrl) logoUrl = data.logoUrl;
+    if (data.logoNavUrl) logoNavUrl = data.logoNavUrl;
     if (data.adminUser !== undefined) adminUser = data.adminUser;
     if (data.adminPass !== undefined) adminPass = data.adminPass;
     syncLogos();
@@ -128,7 +128,7 @@ function toggleRemise(){remiseEnabled=!remiseEnabled;applyRemiseBadge();try{loca
 function toggleAcompte(){acompteEnabled=!acompteEnabled;const badge=document.getElementById('acompteBadge');const wrap=document.getElementById('acompteWrap');const area=document.getElementById('acompteInputArea');const blk=document.getElementById('avanceBlock');if(acompteEnabled){badge.textContent='ON';badge.style.background='#20cf9e';wrap.style.borderColor='#20cf9e';if(area)area.style.display='flex';if(blk)blk.style.display='block';}else{badge.textContent='OFF';badge.style.background='rgba(255,255,255,.2)';wrap.style.borderColor='rgba(255,255,255,.25)';if(area)area.style.display='none';if(blk)blk.style.display='none';}if(Object.keys(cart).length>0)renderResSumm();showToast(acompteEnabled?'💳 Avance activée':'💳 Avance désactivée');}
 function toggleException(){avanceException=!avanceException;const badge=document.getElementById('exceptionBadge');const btn=document.getElementById('exceptionBtn');if(avanceException){badge.textContent='ON';badge.style.background='orange';btn.style.borderColor='orange';const avInp=document.getElementById('avanceInput');if(avInp){avInp.placeholder='Montant libre (exception admin)';avInp.min='0';}const msg=document.getElementById('avanceMsg');if(msg){msg.style.color='orange';msg.textContent='⚡ Exception admin : avance libre, minimum 30% désactivé.';}showToast('⚡ Exception activée — avance libre');}else{badge.textContent='OFF';badge.style.background='rgba(255,255,255,.2)';btn.style.borderColor='rgba(255,165,0,.6)';const avInp=document.getElementById('avanceInput');if(avInp){avInp.placeholder='Laisser vide = 30% minimum';avInp.min='0';}const msg=document.getElementById('avanceMsg');if(msg){msg.style.color='var(--tx3)';msg.textContent='Vous pouvez payer plus de 30% si vous le souhaitez.';}showToast('⚡ Exception désactivée');}}
 function checkAvance(inp){const min30=+(window._tot*0.3).toFixed(3);const val=parseFloat(inp.value);const msg=document.getElementById('avanceMsg');if(inp.value===''||isNaN(val)){inp.style.borderColor='var(--olt)';if(msg&&!avanceException){msg.style.color='var(--tx3)';msg.textContent='Laisser vide = avance par défaut ('+min30.toFixed(3)+' TND)';}return;}if(!avanceException&&val<min30){inp.style.borderColor='#D63031';if(msg){msg.style.color='#D63031';msg.textContent='⚠️ Minimum '+min30.toFixed(3)+' TND (30% du total)';}}else{inp.style.borderColor='var(--green)';if(msg){msg.style.color='var(--gh)';msg.textContent='✅ Avance : '+val.toFixed(3)+' TND — Reste : '+(window._tot-val).toFixed(3)+' TND';}}}
-function getAcompteAmt(total){const min30=+(total*0.3).toFixed(3);const inpAdmin=document.getElementById('acompteInp');const inpPage=document.getElementById('avanceInput');const valAdmin=inpAdmin?parseFloat(inpAdmin.value):NaN;const valPage=inpPage?parseFloat(inpPage.value):NaN;const val=!isNaN(valPage)&&valPage>0?valPage:(!isNaN(valAdmin)&&valAdmin>0?valAdmin:NaN);if(!isNaN(val)&&val>0)return avanceException?val:Math.max(val,min30);return min30;}
+function getAcompteAmt(total){const min30=+(total*0.3).toFixed(3);const inpAdmin=document.getElementById('acompteInp');const inpPage=document.getElementById('avanceInput');const hasPage=inpPage&&inpPage.value!=='';const hasAdmin=inpAdmin&&inpAdmin.value!=='';const valPage=hasPage?parseFloat(inpPage.value):NaN;const valAdmin=hasAdmin?parseFloat(inpAdmin.value):NaN;const val=hasPage&&!isNaN(valPage)?valPage:(hasAdmin&&!isNaN(valAdmin)?valAdmin:NaN);if(!isNaN(val)){if(avanceException)return Math.max(0,val);return Math.max(val,min30);}return min30;}
 function validateAcompteInp(inp){const total=window._tot||0;const min30=+(total*0.3).toFixed(3);const val=parseFloat(inp.value);if(!isNaN(val)&&val<min30){inp.style.background='#FFCCCC';inp.title='Minimum : '+min30.toFixed(3)+' TND (30%)';}else{inp.style.background='rgba(255,255,255,.9)';inp.title='Laisser vide = 30% · Minimum 30% du total';}if(Object.keys(cart).length>0)renderResSumm();}
 function switchPay(tab){curPay=tab;const p3=document.getElementById('p3');p3.querySelectorAll('.ptab').forEach(t=>t.classList.remove('on'));p3.querySelectorAll('.ppanel').forEach(p=>p.classList.remove('on'));document.getElementById('pp-'+tab).classList.add('on');const map={visa:0,edinar:1,cash:2};p3.querySelectorAll('.ptab')[map[tab]]?.classList.add('on');}
 function switchResPay(tab){curResPay=tab;['visa','edinar','cash'].forEach(t=>{document.getElementById('rtab-'+t)?.classList.toggle('on',t===tab);document.getElementById('rp-'+t)?.classList.toggle('on',t===tab);});}
@@ -193,7 +193,7 @@ function saveDataToStorage(){
   try{localStorage.setItem('librairie_rayen_db',JSON.stringify(data));}catch(e){console.error('❌ Erreur localStorage:',e);}
   if(fbDb){
     const booksLight={};Object.keys(booksDB).forEach(k=>{booksLight[k]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject,priceHT:b.priceHT,color:b.color}));});
-    const cfg={schoolLevels,booksDB:booksLight,libName,libTag,libTel,libMF,libAddr,deliveryFee,deliveryNote,heroSubTxt,orderEnabled,logoUrl,logoNavUrl,adminUser,adminPass};
+    const cfg={schoolLevels,booksDB:booksLight,libName,libTag,libTel,libMF,libAddr,deliveryFee,deliveryNote,heroSubTxt,orderEnabled,adminUser,adminPass};
     fbDb.ref('librairie/config').set(cfg).catch(e=>{console.error('❌ Erreur Firebase:',e);showToast('❌ Erreur Firebase: '+e.message);});
     const ordMap={};orders.forEach((o,i)=>ordMap['o'+i]=o);fbDb.ref('librairie/orders').set(orders.length?ordMap:null).catch(()=>{});
     const resMap={};reservations.forEach((r,i)=>resMap['r'+i]=r);fbDb.ref('librairie/reservations').set(reservations.length?resMap:null).catch(()=>{});
@@ -209,4 +209,5 @@ try{const r=localStorage.getItem('librairie_remise');if(r!==null)remiseEnabled=(
 buildSchoolOpts();setLang('fr');
 try{syncLogos();updateStorageInfo();}catch(e){}
 setTimeout(()=>{try{syncLogos();}catch(e){}},1500);
+setTimeout(()=>{try{loadImgsIntoBooks();if(filtSchool&&filtLv){_books=booksDB[gk(filtSchool,filtLv)]||[];if(_books.length)renderGrid(_books);}}catch(e){}},2000);
 setTimeout(()=>{try{syncLogos();}catch(e){}},4000);
