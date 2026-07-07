@@ -72,6 +72,14 @@ try {
       if(curAT===4)renderReceipts();
     }
   });
+  fbDb.ref('librairie/logos').on('value', snap => {
+    const d=snap.val();if(!d)return;
+    if(d.main)logoUrl=d.main;
+    if(d.nav)logoNavUrl=d.nav;
+    try{if(logoUrl)localStorage.setItem('librairie_logo',logoUrl);}catch(e){}
+    try{if(logoNavUrl)localStorage.setItem('librairie_navlogo',logoNavUrl);}catch(e){}
+    syncLogos();
+  });
   fbDb.ref('librairie/bookImages').on('value', snap => {
     const imgs = snap.val();
     if(!imgs) return;
@@ -159,10 +167,12 @@ function renderOrders(){document.getElementById('ordBody').innerHTML=orders.slic
 function renderResvs(){document.getElementById('resvBody').innerHTML=reservations.slice().reverse().map(r=>`<tr><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td><td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge bcash">${r.payment}</span></td><td><span class="badge bpend">${r.status}</span></td><td>${r.date}</td><td><button class="del-row-btn" onclick="deleteReservation(${r.id})" title="Supprimer">🗑️</button></td></tr>`).join('');}
 function renderClients(){const m={};[...orders,...reservations].forEach(r=>{if(!m[r.phone])m[r.phone]={name:r.name,phone:r.phone,address:r.address||'—',orders:0,spent:0,last:r.date};m[r.phone].orders++;m[r.phone].spent+=r.total;m[r.phone].last=r.date;});document.getElementById('cliBody').innerHTML=Object.values(m).map((c,i)=>`<tr><td>${i+1}</td><td><strong>${c.name}</strong></td><td>${c.phone}</td><td style="font-size:.76rem">${c.address}</td><td>${c.orders}</td><td><strong>${c.spent.toFixed(3)} DT</strong></td><td>${c.last}</td></tr>`).join('');}
 function renderReceipts(){const all=[...orders,...reservations].slice().reverse();const w=document.getElementById('recWrap');if(!all.length){w.innerHTML=`<div style="padding:2rem;text-align:center;color:var(--tx3);font-size:.86rem">Aucun reçu pour le moment.</div>`;return;}w.innerHTML=all.map(r=>`<div class="rec-row"><div class="rec-info"><div class="rec-name">#${String(r.id).padStart(4,'0')} — ${r.name} <span class="badge ${r.type==='order'?'bvis':'bres'}" style="margin-left:4px">${r.type==='order'?'Commande':'Réservation'}</span></div><div class="rec-meta">${r.phone} · ${r.school} · ${r.level} · ${r.totalQty} livre(s) · <span class="badge ${r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':'bcash'}">${r.payment}</span> · ${r.date}</div></div><div class="rec-price">${r.total.toFixed(3)} DT</div><button class="rec-dl" onclick='dlPDF(${JSON.stringify(r)})'>📄 Télécharger</button></div>`).join('');}
-function uploadLogo(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{logoUrl=e.target.result;if(autoSave)saveDataToStorage();syncLogos();showToast('✅ Logo page d\'accueil téléchargé');};rd.readAsDataURL(f);}
-function clearLogo(){logoUrl='';if(autoSave)saveDataToStorage();syncLogos();showToast('🗑️ Logo page d\'accueil effacé');}
-function uploadNavLogo(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{logoNavUrl=e.target.result;if(autoSave)saveDataToStorage();syncLogos();showToast('✅ Logo navigation téléchargé');};rd.readAsDataURL(f);}
-function clearNavLogo(){logoNavUrl='';if(autoSave)saveDataToStorage();syncLogos();showToast('🗑️ Logo navigation effacé');}
+function saveLogos(){try{if(logoUrl)localStorage.setItem('librairie_logo',logoUrl);else localStorage.removeItem('librairie_logo');}catch(e){}try{if(logoNavUrl)localStorage.setItem('librairie_navlogo',logoNavUrl);else localStorage.removeItem('librairie_navlogo');}catch(e){}if(fbDb){fbDb.ref('librairie/logos').set({main:logoUrl||'',nav:logoNavUrl||''}).catch(()=>{});}}
+function loadLogos(){try{const l=localStorage.getItem('librairie_logo');if(l)logoUrl=l;}catch(e){}try{const l=localStorage.getItem('librairie_navlogo');if(l)logoNavUrl=l;}catch(e){}}
+function uploadLogo(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{logoUrl=e.target.result;saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('✅ Logo page d\'accueil téléchargé');};rd.readAsDataURL(f);}
+function clearLogo(){logoUrl='';saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('🗑️ Logo page d\'accueil effacé');}
+function uploadNavLogo(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{logoNavUrl=e.target.result;saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('✅ Logo navigation téléchargé');};rd.readAsDataURL(f);}
+function clearNavLogo(){logoNavUrl='';saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('🗑️ Logo navigation effacé');}
 function syncLogos(){
 const heroL=logoUrl;const navL=logoNavUrl||logoUrl;
 [['hLogoImg','hLogoFb',heroL],['lpImg','lpFb',heroL],['lpNavImg','lpNavFb',navL],['nLi2','nLf2',navL],['nLi3','nLf3',navL],['nLi4','nLf4',navL],['nLi5','nLf5',navL],['aLi','aLf',navL],['alLi','alLf',navL]].forEach(([ii,fi,url])=>{const img=document.getElementById(ii);const fb=document.getElementById(fi);if(!img)return;if(url){img.src=url;img.style.display='block';if(fb)fb.style.display='none';}else{img.src='';img.style.display='none';if(fb)fb.style.display='block';}});
@@ -204,7 +214,7 @@ function clearAllData(){if(confirm('⚠️ Êtes-vous sûr(e) de vouloir effacer
 function exportData(){const data={orders,reservations,schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,exportDate:new Date().toLocaleString('fr-FR')};const json=JSON.stringify(data,null,2);const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='librairie_rayen_backup_'+new Date().getTime()+'.json';a.click();URL.revokeObjectURL(url);showToast('📥 Données exportées en JSON');}
 function updateStorageInfo(){try{const stored=localStorage.getItem('librairie_rayen_db');const size=stored?((stored.length/1024).toFixed(2)+' KB'):'Aucune donnée';const recordCount='Commandes: '+orders.length+' | Réservations: '+reservations.length+' | Écoles: '+Object.keys(schoolLevels).length;document.getElementById('storageInfo').innerHTML=size+' — '+recordCount;}catch(e){}}
 function toggleAutoSave(v){autoSave=!!v;try{const cb=document.getElementById('autoSaveChk');if(cb)cb.checked=!!autoSave;}catch(e){}saveDataToStorage();updateStorageInfo();showToast(autoSave?'✅ Sauvegarde automatique activée':'🔕 Sauvegarde automatique désactivée');}
-loadDataFromStorage();
+loadDataFromStorage();loadLogos();
 try{const r=localStorage.getItem('librairie_remise');if(r!==null)remiseEnabled=(r==='1');setTimeout(applyRemiseBadge,100);}catch(e){}
 buildSchoolOpts();setLang('fr');
 try{syncLogos();updateStorageInfo();}catch(e){}
