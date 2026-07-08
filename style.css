@@ -405,27 +405,43 @@ body{font-family:'Nunito',Inter,sans-serif;background:var(--slate);color:var(--t
   /* Formulaire commande/réservation */
   .res-wrap{padding:1rem .85rem}
 
-  /* Admin nav — scrollable horizontalement */
-  .adm-nav{height:auto;padding:.6rem .85rem;flex-wrap:wrap;gap:.5rem}
-  .adm-nav>div:first-child{width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
-  .adm-nav>*{font-size:.72rem}
-  #acompteWrap,#remiseToggleBtn,#exceptionBtn,#livraisonToggleBtn{padding:5px 10px;font-size:.7rem}
-  #acompteWrap input{width:70px;font-size:.75rem}
+  /* Admin nav — 2 lignes sur mobile */
+  .adm-nav{height:auto;padding:.55rem .85rem;flex-direction:column;gap:.5rem;align-items:stretch}
+  .adm-brand{justify-content:flex-start}
+  .adm-nav>div:last-child{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+  #remiseToggleBtn,#exceptionBtn,#livraisonToggleBtn,.adm-out{padding:5px 10px!important;font-size:.7rem!important}
+  #acompteWrap{font-size:.7rem!important}
+  #acompteWrap button{padding:5px 10px!important;font-size:.7rem!important}
+  #acompteInp{width:56px!important;font-size:.72rem!important}
 
   /* Admin tabs — scroll horizontal */
-  .adm-tabs{padding:0 .5rem}
-  .atab{padding:10px 10px;font-size:.74rem}
+  .adm-tabs{padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .adm-tabs::-webkit-scrollbar{display:none}
+  .atab{padding:10px 12px;font-size:.75rem;white-space:nowrap}
 
   /* Tableaux admin — scroll horizontal */
   .twrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .dtable{min-width:600px}
+  .dtable{min-width:650px}
+  .dtable td,.dtable th{padding:7px 8px;font-size:.76rem}
 
-  /* Tableau livre éditor */
-  .bed-hdr,.bed-row{grid-template-columns:1fr 70px 70px 55px 38px 38px;font-size:.72rem}
+  /* Tableau éditeur livres */
+  .bed-hdr,.bed-row{grid-template-columns:1fr 65px 65px 55px 36px 36px;font-size:.7rem;gap:4px}
+  .bed-inp{padding:4px 5px;font-size:.72rem}
 
   /* Stats dashboard */
-  .stats-row{grid-template-columns:repeat(2,1fr);gap:.6rem}
-  .scard-val{font-size:1.4rem}
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:.55rem}
+  .scard{padding:.85rem 1rem}
+  .scard-val{font-size:1.3rem}
+  .scard-lbl{font-size:.62rem}
+
+  /* Reçus */
+  .rec-row{flex-wrap:wrap;gap:.5rem}
+  .rec-info{width:100%}
+
+  /* Paramètres */
+  .set-card{padding:.9rem}
+  .srow{flex-wrap:wrap;gap:.4rem}
+  .sinp{width:100%!important}
 
   /* Reçus */
   .rec-row{flex-wrap:wrap;gap:.5rem}
@@ -442,10 +458,13 @@ body{font-family:'Nunito',Inter,sans-serif;background:var(--slate);color:var(--t
   .stats-row{grid-template-columns:repeat(2,1fr)}
   .modal{padding:1.5rem 1rem}
   .alcard{width:90vw;padding:1.5rem 1rem}
-  .adm-nav button{font-size:.67rem;padding:4px 8px}
-  .dtable{min-width:550px}
+  .dtable{min-width:520px}
   .pbody,.abody{padding:.75rem .65rem}
   .phead h1{font-size:1.15rem}
+  /* Admin nav ultra compact */
+  #remiseToggleBtn span:not([id]),#exceptionBtn span:not([id]),#livraisonToggleBtn span:not([id]){display:none}
+  .adm-n{font-size:.85rem}
+  .adm-tag{display:none}
   .cocard{padding:1rem}
   .res-card{padding:1.25rem}
 }
