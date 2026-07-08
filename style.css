@@ -366,13 +366,86 @@ body{font-family:'Nunito',Inter,sans-serif;background:var(--slate);color:var(--t
 .rec-dl:hover{background:linear-gradient(90deg,var(--vibrant),var(--accent));border-color:transparent;color:white}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:linear-gradient(90deg,var(--vibrant),var(--accent));color:white;padding:9px 22px;border-radius:5px;font-family:'Sora',sans-serif;font-weight:600;font-size:.82rem;z-index:99999;transition:transform .28s;pointer-events:none;white-space:nowrap;border-left:none}
 .toast.vis{transform:translateX(-50%) translateY(0)}
+/* ===== RESPONSIVE MOBILE ===== */
 @media(max-width:768px){
+  /* Layout général */
   .co-grid{grid-template-columns:1fr}
   .set-grid{grid-template-columns:1fr}
-  .fbar{flex-direction:column}
+  .sl-grid{grid-template-columns:1fr}
+  .frow{grid-template-columns:1fr}
+  .pbody{padding:1rem .85rem}
+  .abody{padding:1rem .85rem}
+
+  /* Hero */
+  .hmetrics{flex-direction:column}
+  .hm{border-right:none;border-bottom:1px solid rgba(27,27,27,.04);padding:.85rem 0}
+  .hm:last-child{border-bottom:none}
+  .hero-body{padding:2rem 1rem}
+  .hbrand{gap:10px;margin-bottom:1.5rem}
+  .hname{font-size:1.4rem}
+
+  /* Barre de navigation client */
+  .topnav{padding:0 .85rem;height:54px}
+  .nav-acts .nbtn span{display:none}
+  .nbtn{padding:7px 10px;font-size:.78rem}
+
+  /* Filtres livres */
+  .fbar{flex-direction:column;gap:.6rem;padding:.85rem}
+  .fg{min-width:unset;width:100%}
+  .fbtn{width:100%;justify-content:center}
+
+  /* Grille livres */
+  .bgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem}
+
+  /* Panier */
   .cart-bar{flex-direction:column;gap:.55rem;padding:.7rem 1rem}
   .cart-actions{width:100%;justify-content:stretch}
-  .cart-btn{flex:1;justify-content:center}
-  .sl-grid{grid-template-columns:1fr}
-  .hmetrics{flex-direction:column}.hm{border-right:none;border-bottom:1px solid rgba(27,27,27,.04);padding:.85rem 0}.hm:last-child{border-bottom:none}
+  .cart-btn{flex:1;justify-content:center;padding:10px 12px;font-size:.8rem}
+
+  /* Formulaire commande/réservation */
+  .res-wrap{padding:1rem .85rem}
+
+  /* Admin nav — scrollable horizontalement */
+  .adm-nav{height:auto;padding:.6rem .85rem;flex-wrap:wrap;gap:.5rem}
+  .adm-nav>div:first-child{width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
+  .adm-nav>*{font-size:.72rem}
+  #acompteWrap,#remiseToggleBtn,#exceptionBtn,#livraisonToggleBtn{padding:5px 10px;font-size:.7rem}
+  #acompteWrap input{width:70px;font-size:.75rem}
+
+  /* Admin tabs — scroll horizontal */
+  .adm-tabs{padding:0 .5rem}
+  .atab{padding:10px 10px;font-size:.74rem}
+
+  /* Tableaux admin — scroll horizontal */
+  .twrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .dtable{min-width:600px}
+
+  /* Tableau livre éditor */
+  .bed-hdr,.bed-row{grid-template-columns:1fr 70px 70px 55px 38px 38px;font-size:.72rem}
+
+  /* Stats dashboard */
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:.6rem}
+  .scard-val{font-size:1.4rem}
+
+  /* Reçus */
+  .rec-row{flex-wrap:wrap;gap:.5rem}
+  .rec-info{width:100%}
+  .rec-price{font-size:.82rem}
+}
+
+/* ===== TRÈS PETIT ÉCRAN (téléphones < 480px) ===== */
+@media(max-width:480px){
+  .bgrid{grid-template-columns:repeat(2,1fr);gap:.55rem}
+  .bcover{aspect-ratio:3/4}
+  .btitle{font-size:.74rem}
+  .hero-h1{font-size:2rem}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .modal{padding:1.5rem 1rem}
+  .alcard{width:90vw;padding:1.5rem 1rem}
+  .adm-nav button{font-size:.67rem;padding:4px 8px}
+  .dtable{min-width:550px}
+  .pbody,.abody{padding:.75rem .65rem}
+  .phead h1{font-size:1.15rem}
+  .cocard{padding:1rem}
+  .res-card{padding:1.25rem}
 }
