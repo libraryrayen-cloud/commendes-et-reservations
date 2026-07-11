@@ -166,7 +166,131 @@ function doLogin(){const u=document.getElementById('al-u').value;const p=documen
 function openAdmin(){['p1','p2','p3','p4'].forEach(p=>document.getElementById(p).classList.remove('active'));document.getElementById('adm-page').classList.add('active');document.getElementById('s-name').value=libName;document.getElementById('s-tag').value=libTag;document.getElementById('s-tel').value=libTel;document.getElementById('s-mf').value=libMF;document.getElementById('s-addr').value=libAddr;document.getElementById('s-del').value=deliveryFee.toFixed(3);document.getElementById('s-usr').value=adminUser;const hsub=document.getElementById('s-hsub');if(hsub)hsub.value=heroSubTxt;const dnote=document.getElementById('s-dnote');if(dnote)dnote.value=deliveryNote;syncLogos();renderSchoolTags();buildAdmSchOpts();updateStorageInfo();syncOrderToggle();aTab(0);}
 function logout(){document.getElementById('adm-page').classList.remove('active');go('p1');}
 let curAT=0;
-function aTab(i){curAT=i;document.querySelectorAll('.atab').forEach((t,j)=>t.classList.toggle('on',j===i));document.querySelectorAll('.tpanel').forEach((p,j)=>p.classList.toggle('on',j===i));if(i===0)renderDash();if(i===1)renderOrders();if(i===2)renderResvs();if(i===3)renderClients();if(i===4)renderReceipts();if(i===5)updateStorageInfo();}
+let _fourAgg=[];
+function renderFournisseur(){
+  const inclOrders=document.getElementById('fourInclOrders')&&document.getElementById('fourInclOrders').checked;
+  const inclResvs=document.getElementById('fourInclResvs')&&document.getElementById('fourInclResvs').checked;
+  const rows=[];
+  if(inclOrders)orders.forEach(r=>rows.push({...r,_type:'Commande'}));
+  if(inclResvs)reservations.forEach(r=>rows.push({...r,_type:'Réservation'}));
+  rows.sort((a,b)=>b.id-a.id);
+  const tb=document.getElementById('fourBody');if(!tb)return;
+  tb.innerHTML=rows.map(r=>{
+    const nb=(r.items||[]).reduce((s,x)=>s+x.qty,0);
+    const d=r.date?new Date(r.date).toLocaleDateString('fr-FR'):'—';
+    return `<tr>
+      <td><input type="checkbox" class="four-chk" data-id="${r.id}" data-type="${r._type}" onchange="fourUpdateCount()"></td>
+      <td>#${r.id}</td>
+      <td><span style="background:${r._type==='Commande'?'var(--green)':'var(--orange)'};color:white;border-radius:4px;padding:1px 7px;font-size:.72rem">${r._type}</span></td>
+      <td>${r.name||'—'}</td>
+      <td style="font-size:.78rem">${r.school||'—'} / ${r.level||'—'}</td>
+      <td style="text-align:center;font-weight:700">${nb}</td>
+      <td style="font-size:.78rem">${d}</td>
+    </tr>`;
+  }).join('');
+  fourUpdateCount();
+}
+function fourUpdateCount(){
+  const chks=document.querySelectorAll('.four-chk:checked');
+  const el=document.getElementById('fourSelCount');
+  if(el)el.textContent=chks.length+' sélectionné(s)';
+  const allChks=document.querySelectorAll('.four-chk');
+  const ca=document.getElementById('fourChkAll');
+  if(ca)ca.checked=allChks.length>0&&chks.length===allChks.length;
+}
+function fourSelAll(v){
+  document.querySelectorAll('.four-chk').forEach(c=>{c.checked=!!v;});
+  fourUpdateCount();
+}
+function genFournisseurCmd(){
+  const chks=[...document.querySelectorAll('.four-chk:checked')];
+  if(!chks.length){alert('Veuillez sélectionner au moins une commande ou réservation.');return;}
+  const agg={};
+  chks.forEach(c=>{
+    const id=+c.dataset.id;const tp=c.dataset.type;
+    const src=tp==='Commande'?orders:reservations;
+    const rec=src.find(r=>r.id===id);
+    if(!rec)return;
+    (rec.items||[]).forEach(item=>{
+      const k=item.ean||item.title;
+      if(!agg[k])agg[k]={ean:item.ean||'—',title:item.title||'—',qty:0};
+      agg[k].qty+=item.qty;
+    });
+  });
+  _fourAgg=Object.values(agg).sort((a,b)=>a.title.localeCompare(b.title));
+  const tbody=document.getElementById('fourResBody');
+  if(!tbody)return;
+  const totalQty=_fourAgg.reduce((s,x)=>s+x.qty,0);
+  tbody.innerHTML=_fourAgg.map((r,i)=>`<tr>
+    <td style="color:var(--tx3)">${i+1}</td>
+    <td>${r.title}</td>
+    <td style="font-size:.78rem;color:var(--tx3)">${r.ean}</td>
+    <td style="text-align:right;font-weight:700;color:var(--orange)">${r.qty}</td>
+  </tr>`).join('');
+  const sumEl=document.getElementById('fourSummary');
+  if(sumEl)sumEl.textContent=_fourAgg.length+' titre(s) différent(s) · '+totalQty+' exemplaire(s) au total · depuis '+chks.length+' commande(s)/réservation(s)';
+  const res=document.getElementById('fourResult');
+  if(res){res.style.display='block';res.scrollIntoView({behavior:'smooth',block:'start'});}
+}
+function dlFournisseurPDF(){
+  if(!_fourAgg||!_fourAgg.length){alert('Générez d\'abord la commande.');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210,H=297,M=14;
+  doc.setFillColor(0,168,120);doc.rect(0,0,W,22,'F');
+  doc.setFillColor(232,96,28);doc.rect(0,22,W,3,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(15);
+  doc.text(libName,M,10);
+  doc.setFontSize(8.5);doc.setFont('helvetica','normal');
+  doc.text(libAddr+' · Tél : '+libTel,M,16);
+  doc.setTextColor(27,43,75);doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text('BON DE COMMANDE FOURNISSEUR',W/2,33,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,110,130);
+  doc.text('Date : '+new Date().toLocaleDateString('fr-FR'),W-M,33,{align:'right'});
+  doc.setTextColor(27,43,75);doc.setFontSize(8);
+  const totalQty=_fourAgg.reduce((s,x)=>s+x.qty,0);
+  doc.text(_fourAgg.length+' titre(s) · '+totalQty+' exemplaire(s) au total',M,40);
+  let y=47;
+  const cT=M,cE=M+100,cQ=W-M;
+  doc.setFillColor(27,43,75);doc.rect(M,y,W-2*M,8,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+  doc.text('Titre',cT+2,y+5.5);doc.text('EAN',cE,y+5.5);doc.text('Qté',cQ,y+5.5,{align:'right'});
+  y+=8;
+  _fourAgg.forEach((r,i)=>{
+    if(y+8>H-20){
+      doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');
+      doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');
+      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);
+      doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});
+      doc.addPage();y=20;
+      doc.setFillColor(27,43,75);doc.rect(M,y,W-2*M,8,'F');
+      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+      doc.text('Titre',cT+2,y+5.5);doc.text('EAN',cE,y+5.5);doc.text('Qté',cQ,y+5.5,{align:'right'});
+      y+=8;
+    }
+    doc.setFillColor(i%2===0?255:245,i%2===0?255:247,i%2===0?255:255);
+    doc.rect(M,y,W-2*M,8,'F');
+    doc.setTextColor(27,43,75);doc.setFont('helvetica','normal');doc.setFontSize(8);
+    const tit=r.title.length>52?r.title.substring(0,51)+'…':r.title;
+    doc.text(tit,cT+2,y+5.3);
+    doc.setTextColor(100,110,130);doc.text(r.ean,cE,y+5.3);
+    doc.setTextColor(232,96,28);doc.setFont('helvetica','bold');doc.setFontSize(9);
+    doc.text(String(r.qty),cQ,y+5.5,{align:'right'});
+    y+=8;
+  });
+  y+=4;
+  doc.setDrawColor(200,200,210);doc.setLineWidth(0.3);doc.line(M,y,W-M,y);y+=6;
+  doc.setTextColor(27,43,75);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.text('Total : '+totalQty+' exemplaire(s)',W-M,y,{align:'right'});
+  doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');
+  doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+  doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(7);
+  doc.text('Document généré le '+new Date().toLocaleDateString('fr-FR'),W/2,H-6,{align:'center'});
+  doc.save('commande-fournisseur-'+new Date().toISOString().slice(0,10)+'.pdf');
+}
+function aTab(i){curAT=i;document.querySelectorAll('.atab').forEach((t,j)=>t.classList.toggle('on',j===i));document.querySelectorAll('.tpanel').forEach((p,j)=>p.classList.toggle('on',j===i));if(i===0)renderDash();if(i===1)renderOrders();if(i===2)renderResvs();if(i===3)renderClients();if(i===4)renderReceipts();if(i===5)updateStorageInfo();if(i===6)renderFournisseur();}
 function toggleDelivery(id){const o=orders.find(r=>String(r.id)===String(id));if(!o)return;o.delivered=!o.delivered;saveDataToStorage();renderOrders();showToast(o.delivered?'📦 Marquée comme livrée':'🕐 Marquée comme non livrée');}
 function buildRow(r){const pc=r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':r.payment==='Espèces'?'bcash':'bres';const sc=r.status==='Confirmée'?'bok':'bpend';const dlvBtn=r.delivered?`<button class="del-row-btn" style="background:#20cf9e;border-color:#20cf9e;min-width:80px" onclick="toggleDelivery(${r.id})" title="Cliquer pour marquer non livrée">📦 Livré</button>`:`<button class="del-row-btn" style="background:#718096;border-color:#718096;min-width:80px" onclick="toggleDelivery(${r.id})" title="Cliquer pour marquer livrée">🕐 En cours</button>`;return`<tr style="${r.delivered?'opacity:.7':''}"><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td>${r.address!==undefined?`<td style="font-size:.76rem;max-width:100px">${r.address}</td>`:''}<td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge ${pc}">${r.payment}</span></td><td><span class="badge ${sc}">${r.status}</span></td><td>${r.date}</td><td style="display:flex;gap:4px">${dlvBtn}<button class="del-row-btn" onclick="deleteOrder(${r.id})" title="Supprimer">🗑️</button></td></tr>`;}
 function deleteOrder(id){if(!confirm('Supprimer cette commande ?'))return;orders=orders.filter(o=>String(o.id)!==String(id));saveDataToStorage();renderOrders();renderDash();showToast('🗑️ Commande supprimée');}
