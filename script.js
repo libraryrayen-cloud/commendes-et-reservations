@@ -210,8 +210,8 @@ function xlUpdatePreview(){
   const prev=_xlRows.slice(0,6);
   const tb=document.getElementById('xlPrevBody');
   if(tb)tb.innerHTML=prev.map(r=>{
-    const niv=String(r[iL]||'');const cls=iC>=0?String(r[iC]||''):'';
-    const niveau=cls?(niv+' '+cls).trim():niv;
+    const niv=String(r[iL]||'');const cls=iC>=0?String(r[iC]||'').trim():'';
+    const niveau=cls?cls:niv;
     const prix=iP>=0?(r[iP]||'—'):'—';
     return `<tr><td>${r[iT]||'—'}</td><td style="font-size:.75rem;color:var(--tx3)">${r[iE]||'—'}</td><td>${r[iS]||'—'}</td><td>${niveau||'—'}</td><td style="color:var(--tx3)">${cls||'—'}</td><td style="color:var(--green)">${prix}</td></tr>`;
   }).join('');
@@ -233,7 +233,7 @@ function doExcelImport(){
     const school=String(r[iS]||'').trim();
     const niv=String(r[iL]||'').trim();
     const cls=iC>=0?String(r[iC]||'').trim():'';
-    const level=cls?(niv+' '+cls).trim():niv;
+    const level=cls?cls:niv;
     const prixRaw=iP>=0?parseFloat(String(r[iP]||'').replace(',','.')):0;
     const prix=isNaN(prixRaw)?0:prixRaw;
     if(!title||!school||!level){skipped++;return;}
