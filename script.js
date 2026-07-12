@@ -166,6 +166,82 @@ function doLogin(){const u=document.getElementById('al-u').value;const p=documen
 function openAdmin(){['p1','p2','p3','p4'].forEach(p=>document.getElementById(p).classList.remove('active'));document.getElementById('adm-page').classList.add('active');document.getElementById('s-name').value=libName;document.getElementById('s-tag').value=libTag;document.getElementById('s-tel').value=libTel;document.getElementById('s-mf').value=libMF;document.getElementById('s-addr').value=libAddr;document.getElementById('s-del').value=deliveryFee.toFixed(3);document.getElementById('s-usr').value=adminUser;const hsub=document.getElementById('s-hsub');if(hsub)hsub.value=heroSubTxt;const dnote=document.getElementById('s-dnote');if(dnote)dnote.value=deliveryNote;syncLogos();renderSchoolTags();buildAdmSchOpts();updateStorageInfo();syncOrderToggle();aTab(0);}
 function logout(){document.getElementById('adm-page').classList.remove('active');go('p1');}
 let curAT=0;
+let _xlRows=[],_xlHeaders=[];
+function handleExcelFile(input){
+  const file=input.files[0];if(!file)return;
+  const nameEl=document.getElementById('xlFileName');if(nameEl)nameEl.textContent=file.name;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(!data||data.length<2){alert('Fichier vide ou invalide.');return;}
+      _xlHeaders=(data[0]||[]).map(String);
+      _xlRows=data.slice(1).filter(r=>r.some(c=>String(c).trim()!==''));
+      showExcelMapper();
+    }catch(ex){alert('Erreur lors de la lecture du fichier. Vérifiez que c\'est un fichier Excel ou CSV valide.');}
+  };
+  reader.readAsBinaryString(file);
+}
+function showExcelMapper(){
+  const opts=_xlHeaders.map((h,i)=>`<option value="${i}">${h||'Colonne '+(i+1)}</option>`).join('');
+  const auto=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().includes(t)));return i>=0?i:0;};
+  const iT=auto('titre','title','nom','livre','designation');
+  const iE=auto('ean','isbn','ref','code','barr');
+  const iS=auto('ecole','école','school','etabl');
+  const iL=auto('niveau','level','class','annee','année');
+  ['xlColTitle','xlColEan','xlColSchool','xlColLevel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+  const s=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  s('xlColTitle',iT);s('xlColEan',iE);s('xlColSchool',iS);s('xlColLevel',iL);
+  const w=document.getElementById('xlMapWrap');if(w)w.style.display='block';
+  xlUpdatePreview();
+}
+function xlUpdatePreview(){
+  const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
+  const iT=g('xlColTitle'),iE=g('xlColEan'),iS=g('xlColSchool'),iL=g('xlColLevel');
+  const prev=_xlRows.slice(0,6);
+  const tb=document.getElementById('xlPrevBody');
+  if(tb)tb.innerHTML=prev.map(r=>`<tr><td>${r[iT]||'—'}</td><td style="font-size:.75rem;color:var(--tx3)">${r[iE]||'—'}</td><td>${r[iS]||'—'}</td><td>${r[iL]||'—'}</td></tr>`).join('');
+  const cnt=document.getElementById('xlCount');
+  if(cnt)cnt.textContent=_xlRows.length+' ligne(s) détectée(s) — aperçu des 6 premières';
+}
+function doExcelImport(){
+  const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
+  const iT=g('xlColTitle'),iE=g('xlColEan'),iS=g('xlColSchool'),iL=g('xlColLevel');
+  const mode=document.getElementById('xlMode')?document.getElementById('xlMode').value:'merge';
+  if(!_xlRows.length){alert('Aucune donnée à importer.');return;}
+  if(mode==='replace'){Object.keys(booksDB).forEach(k=>{booksDB[k]=[];});}
+  let added=0,skipped=0;
+  _xlRows.forEach(r=>{
+    const title=String(r[iT]||'').trim();
+    const ean=String(r[iE]||'').trim();
+    const school=String(r[iS]||'').trim();
+    const level=String(r[iL]||'').trim();
+    if(!title||!school||!level){skipped++;return;}
+    if(!schoolLevels[school])schoolLevels[school]=[];
+    if(!schoolLevels[school].includes(level))schoolLevels[school].push(level);
+    const key=gk(school,level);
+    if(!booksDB[key])booksDB[key]=[];
+    if(mode==='merge'){
+      const exists=booksDB[key].some(b=>(ean&&b.ean===ean)||(b.title===title));
+      if(exists){skipped++;return;}
+    }
+    booksDB[key].push({id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,ean,subject:'',priceHT:0,color:''});
+    added++;
+  });
+  saveDataToStorage();
+  if(fbDb){
+    const bl={};
+    Object.keys(booksDB).forEach(k=>{bl[k]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject||'',priceHT:b.priceHT||0,color:b.color||''}));});
+    fbDb.ref('librairie/config').update({schoolLevels,booksDB:bl}).catch(()=>{});
+  }
+  const w=document.getElementById('xlMapWrap');if(w)w.style.display='none';
+  const fn=document.getElementById('xlFileName');if(fn)fn.textContent='Aucun fichier sélectionné';
+  const fi=document.getElementById('xlFile');if(fi)fi.value='';
+  _xlRows=[];_xlHeaders=[];
+  alert('Importation terminée !\n✅ '+added+' livre(s) ajouté(s)\n⏭️ '+skipped+' ignoré(s) (doublon ou données manquantes)');
+}
 let _fourAgg=[];
 function renderFournisseur(){
   const inclOrders=document.getElementById('fourInclOrders')&&document.getElementById('fourInclOrders').checked;
