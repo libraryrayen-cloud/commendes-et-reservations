@@ -200,43 +200,37 @@ function handleExcelFile(input){
 function showExcelMapper(){
   const opts=_xlHeaders.map((h,i)=>`<option value="${i}">${h||'Colonne '+(i+1)}</option>`).join('');
   const optsOpt='<option value="-1">— Aucune —</option>'+opts;
-  const auto=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().includes(t)));return i>=0?i:0;};
-  const autoOpt=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().includes(t)));return i>=0?i:-1;};
-  const iT=auto('titre','title','nom','livre','designation');
+  const auto=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().replace(/[éèê]/g,'e').includes(t)));return i>=0?i:0;};
+  const autoOpt=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().replace(/[éèê]/g,'e').includes(t)));return i>=0?i:-1;};
+  const iT=auto('titre','title','designation','designation','nom','livre');
   const iE=auto('ean','isbn','ref','code','barr');
-  const iSub=autoOpt('matiere','matière','subject','discipline');
+  const iSub=autoOpt('matiere','subject','discipline','matieres');
   const iP=autoOpt('prix','price','tarif','montant');
-  ['xlColTitle','xlColEan'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+  const iS=auto('ecole','school','etabl','institution');
+  const iL=auto('niveau','classe','level','class','niveaux');
+  ['xlColTitle','xlColEan','xlColSchool','xlColLevel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
   ['xlColSubject','xlColPrix'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=optsOpt;});
   const s=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
-  s('xlColTitle',iT);s('xlColEan',iE);s('xlColSubject',iSub);s('xlColPrix',iP);
-  // Populate destination school selector
-  const ds=document.getElementById('xlDestSchool');
-  if(ds){ds.innerHTML='<option value="">— Choisir une école —</option>'+Object.keys(schoolLevels).map(s=>`<option value="${s}">${s}</option>`).join('');xlUpdateDestLevels();}
+  s('xlColTitle',iT);s('xlColEan',iE);s('xlColSubject',iSub);s('xlColPrix',iP);s('xlColSchool',iS);s('xlColLevel',iL);
   const w=document.getElementById('xlMapWrap');if(w)w.style.display='block';
   xlUpdatePreview();
 }
 function xlUpdatePreview(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
   const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
-  const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix');
+  const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix'),iS=g('xlColSchool'),iL=g('xlColLevel');
   const prev=_xlRows.slice(0,6);
   const tb=document.getElementById('xlPrevBody');
   if(tb)tb.innerHTML=prev.map(r=>`<tr>
     <td>${r[iT]||'—'}</td>
-    <td style="font-size:.75rem;color:var(--tx3)">${r[iE]||'—'}</td>
+    <td style="font-size:.73rem;color:var(--tx3)">${r[iE]||'—'}</td>
     <td style="color:var(--tx2)">${iSub>=0?(r[iSub]||'—'):'—'}</td>
     <td style="color:var(--green)">${iP>=0?(r[iP]||'—'):'—'}</td>
+    <td style="font-size:.73rem;color:var(--navy)">${r[iS]||'—'}</td>
+    <td style="font-size:.73rem">${r[iL]||'—'}</td>
   </tr>`).join('');
   const cnt=document.getElementById('xlCount');
   if(cnt)cnt.textContent=_xlRows.length+' ligne(s) détectée(s) · aperçu des 6 premières';
-}
-function xlUpdateDestLevels(){
-  const school=document.getElementById('xlDestSchool')?document.getElementById('xlDestSchool').value:'';
-  const dl=document.getElementById('xlDestLevel');
-  if(!dl)return;
-  dl.innerHTML='<option value="">— Choisir un niveau —</option>';
-  if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{const o=document.createElement('option');o.value=lv;o.textContent=lv;dl.appendChild(o);});
 }
 let _xlSchoolMap={};
 const ETAB_PREFIX={'Primaire':'École Primaire','Collège':'Collège','Lycée':'Lycée'};
@@ -322,27 +316,36 @@ function xlBackToStep1(){document.getElementById('xlSchoolMapWrap').style.displa
 function doExcelImport(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
   const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
-  const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix');
-  const school=document.getElementById('xlDestSchool')?document.getElementById('xlDestSchool').value:'';
-  const level=document.getElementById('xlDestLevel')?document.getElementById('xlDestLevel').value:'';
-  const mode=document.getElementById('xlMode')?document.getElementById('xlMode').value:'merge';
+  const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix'),iS=g('xlColSchool'),iL=g('xlColLevel');
   if(!_xlRows.length){alert('Aucune donnée à importer.');return;}
-  if(!school||!level){alert('Veuillez choisir une école et un niveau de destination.');return;}
-  const key=gk(school,level);
-  if(!booksDB[key])booksDB[key]=[];
-  if(mode==='replace')booksDB[key]=[];
-  let added=0,skipped=0;
+  let added=0,skipped=0,schoolsCreated=0,levelsCreated=0;
   _xlRows.forEach(r=>{
     const title=String(r[iT]||'').trim();
     const ean=String(r[iE]||'').trim();
     const subject=iSub>=0?String(r[iSub]||'').trim():'';
     const prixRaw=iP>=0?parseFloat(String(r[iP]||'').replace(',','.')):0;
     const prix=isNaN(prixRaw)?0:prixRaw;
-    if(!title){skipped++;return;}
-    if(mode==='merge'){
-      const exists=booksDB[key].some(b=>(ean&&b.ean===ean)||(b.title===title));
-      if(exists){skipped++;return;}
-    }
+    const rawSchool=String(r[iS]||'').trim();
+    const level=String(r[iL]||'').trim();
+    if(!title||!rawSchool||!level){skipped++;return;}
+    // Build full school name with etablissement prefix
+    const etab=getEtablissement(level)||'';
+    const prefix=ETAB_PREFIX[etab]?ETAB_PREFIX[etab]+' ':'';
+    // Find existing school matching rawSchool + etab type, or create
+    const existingMatch=Object.keys(schoolLevels).find(s=>{
+      const sLow=s.toLowerCase();const rLow=rawSchool.toLowerCase();
+      return sLow===rLow||sLow.endsWith(' '+rLow)||sLow===prefix.toLowerCase().trim()+' '+rLow;
+    });
+    const school=existingMatch||(prefix+rawSchool);
+    // Create school if missing
+    if(!schoolLevels[school]){schoolLevels[school]=[];schoolsCreated++;}
+    // Create level if missing
+    if(!schoolLevels[school].includes(level)){schoolLevels[school].push(level);levelsCreated++;}
+    const key=gk(school,level);
+    if(!booksDB[key])booksDB[key]=[];
+    // Skip if book already exists (by EAN or title)
+    const exists=booksDB[key].some(b=>(ean&&b.ean===ean)||(b.title===title));
+    if(exists){skipped++;return;}
     booksDB[key].push({id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,ean,subject,priceHT:prix,color:''});
     added++;
   });
@@ -356,7 +359,10 @@ function doExcelImport(){
   const fn=document.getElementById('xlFileName');if(fn)fn.textContent='Aucun fichier sélectionné';
   const fi=document.getElementById('xlFile');if(fi)fi.value='';
   _xlRows=[];_xlHeaders=[];
-  alert('Importation terminée !\n✅ '+added+' livre(s) ajouté(s)\n⏭️ '+skipped+' ignoré(s) (doublon ou données manquantes)');
+  const msg=['✅ Importation terminée !','','📚 '+added+' livre(s) ajouté(s)','⏭️ '+skipped+' ignoré(s) (déjà présent ou données manquantes)'];
+  if(schoolsCreated)msg.push('🏫 '+schoolsCreated+' école(s) créée(s)');
+  if(levelsCreated)msg.push('📋 '+levelsCreated+' niveau(x) créé(s)');
+  alert(msg.join('\n'));
 }
 let _fourAgg=[];
 function renderFournisseur(){
