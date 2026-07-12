@@ -186,29 +186,43 @@ function handleExcelFile(input){
 }
 function showExcelMapper(){
   const opts=_xlHeaders.map((h,i)=>`<option value="${i}">${h||'Colonne '+(i+1)}</option>`).join('');
+  const optsOpt='<option value="-1">— Aucune —</option>'+opts;
   const auto=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().includes(t)));return i>=0?i:0;};
+  const autoOpt=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().includes(t)));return i>=0?i:-1;};
   const iT=auto('titre','title','nom','livre','designation');
   const iE=auto('ean','isbn','ref','code','barr');
   const iS=auto('ecole','école','school','etabl');
-  const iL=auto('niveau','level','class','annee','année');
+  const iL=auto('niveau','niveaux','level','annee','année');
+  const iC=autoOpt('classe','class','section');
+  const iP=autoOpt('prix','price','tarif','montant');
   ['xlColTitle','xlColEan','xlColSchool','xlColLevel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+  ['xlColClasse','xlColPrix'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=optsOpt;});
   const s=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
-  s('xlColTitle',iT);s('xlColEan',iE);s('xlColSchool',iS);s('xlColLevel',iL);
+  s('xlColTitle',iT);s('xlColEan',iE);s('xlColSchool',iS);s('xlColLevel',iL);s('xlColClasse',iC);s('xlColPrix',iP);
   const w=document.getElementById('xlMapWrap');if(w)w.style.display='block';
   xlUpdatePreview();
 }
 function xlUpdatePreview(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
+  const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
   const iT=g('xlColTitle'),iE=g('xlColEan'),iS=g('xlColSchool'),iL=g('xlColLevel');
+  const iC=go('xlColClasse'),iP=go('xlColPrix');
   const prev=_xlRows.slice(0,6);
   const tb=document.getElementById('xlPrevBody');
-  if(tb)tb.innerHTML=prev.map(r=>`<tr><td>${r[iT]||'—'}</td><td style="font-size:.75rem;color:var(--tx3)">${r[iE]||'—'}</td><td>${r[iS]||'—'}</td><td>${r[iL]||'—'}</td></tr>`).join('');
+  if(tb)tb.innerHTML=prev.map(r=>{
+    const niv=String(r[iL]||'');const cls=iC>=0?String(r[iC]||''):'';
+    const niveau=cls?(niv+' '+cls).trim():niv;
+    const prix=iP>=0?(r[iP]||'—'):'—';
+    return `<tr><td>${r[iT]||'—'}</td><td style="font-size:.75rem;color:var(--tx3)">${r[iE]||'—'}</td><td>${r[iS]||'—'}</td><td>${niveau||'—'}</td><td style="color:var(--tx3)">${cls||'—'}</td><td style="color:var(--green)">${prix}</td></tr>`;
+  }).join('');
   const cnt=document.getElementById('xlCount');
   if(cnt)cnt.textContent=_xlRows.length+' ligne(s) détectée(s) — aperçu des 6 premières';
 }
 function doExcelImport(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
+  const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
   const iT=g('xlColTitle'),iE=g('xlColEan'),iS=g('xlColSchool'),iL=g('xlColLevel');
+  const iC=go('xlColClasse'),iP=go('xlColPrix');
   const mode=document.getElementById('xlMode')?document.getElementById('xlMode').value:'merge';
   if(!_xlRows.length){alert('Aucune donnée à importer.');return;}
   if(mode==='replace'){Object.keys(booksDB).forEach(k=>{booksDB[k]=[];});}
@@ -217,7 +231,11 @@ function doExcelImport(){
     const title=String(r[iT]||'').trim();
     const ean=String(r[iE]||'').trim();
     const school=String(r[iS]||'').trim();
-    const level=String(r[iL]||'').trim();
+    const niv=String(r[iL]||'').trim();
+    const cls=iC>=0?String(r[iC]||'').trim():'';
+    const level=cls?(niv+' '+cls).trim():niv;
+    const prixRaw=iP>=0?parseFloat(String(r[iP]||'').replace(',','.')):0;
+    const prix=isNaN(prixRaw)?0:prixRaw;
     if(!title||!school||!level){skipped++;return;}
     if(!schoolLevels[school])schoolLevels[school]=[];
     if(!schoolLevels[school].includes(level))schoolLevels[school].push(level);
@@ -227,7 +245,7 @@ function doExcelImport(){
       const exists=booksDB[key].some(b=>(ean&&b.ean===ean)||(b.title===title));
       if(exists){skipped++;return;}
     }
-    booksDB[key].push({id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,ean,subject:'',priceHT:0,color:''});
+    booksDB[key].push({id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,ean,subject:'',priceHT:prix,color:''});
     added++;
   });
   saveDataToStorage();
