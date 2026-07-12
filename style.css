@@ -156,6 +156,10 @@ body{font-family:'Nunito',Inter,sans-serif;background:var(--slate);color:var(--t
 .srch-ico{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:.92rem;pointer-events:none}
 .srch-clr{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:var(--bd);color:var(--tx2);border:none;border-radius:50%;width:20px;height:20px;font-size:.66rem;cursor:pointer;display:none;align-items:center;justify-content:center;font-weight:700}
 .srch-clr.vis{display:flex}
+.etab-filter{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem}
+.etab-btn{border:2px solid var(--bd);border-radius:999px;padding:6px 16px;font-size:.82rem;font-weight:600;cursor:pointer;background:var(--card);color:var(--tx2);transition:all .18s;font-family:'Sora',sans-serif}
+.etab-btn:hover{border-color:var(--orange);color:var(--orange)}
+.etab-btn.on{background:var(--orange);border-color:var(--orange);color:white;box-shadow:0 2px 8px rgba(232,96,28,.3)}
 .fbar{background:linear-gradient(135deg,var(--vibrant),var(--accent));border-radius:var(--rl);padding:1rem 1.3rem;margin-bottom:1.3rem;display:flex;gap:.8rem;flex-wrap:wrap;align-items:flex-end}
 .fg{display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px}
 .fg label{font-size:.67rem;font-weight:600;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em}

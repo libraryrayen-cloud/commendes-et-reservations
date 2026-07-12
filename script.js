@@ -123,8 +123,21 @@ function setLang(l){lang=l;document.querySelectorAll('.lbtn').forEach(b=>b.class
 (function(){const bar=document.getElementById('langBar');let drag=false,ox=0,oy=0,moved=false;function start(cx,cy){drag=true;moved=false;bar.classList.add('drag');const r=bar.getBoundingClientRect();ox=cx-r.left;oy=cy-r.top;bar.style.right='auto';bar.style.left=r.left+'px';bar.style.top=r.top+'px';}function move(cx,cy){if(!drag)return;moved=true;bar.style.left=(cx-ox)+'px';bar.style.top=(cy-oy)+'px';}function end(e){if(!drag)return;drag=false;bar.classList.remove('drag');if(!moved&&e.target&&e.target.closest('.lbtn')){e.target.closest('.lbtn').click();}}bar.addEventListener('mousedown',e=>{start(e.clientX,e.clientY);e.preventDefault();});document.addEventListener('mousemove',e=>move(e.clientX,e.clientY));document.addEventListener('mouseup',e=>end(e));bar.addEventListener('touchstart',e=>{const t=e.touches[0];start(t.clientX,t.clientY);},{passive:true});document.addEventListener('touchmove',e=>{const t=e.touches[0];move(t.clientX,t.clientY);},{passive:true});document.addEventListener('touchend',e=>end(e.changedTouches?{target:e.target}:e));})();
 function go(pid){['p1','p2','p3','p4','p5'].forEach(p=>document.getElementById(p).classList.remove('active'));document.getElementById(pid).classList.add('active');document.getElementById('al-page').classList.remove('vis');document.getElementById('adm-page').classList.remove('active');if(pid==='p3')renderOrderSumm();if(pid==='p4')renderResSumm();if(pid==='p5')renderDevis();syncLogos();window.scrollTo(0,0);}
 function showAdminLogin(){['p1','p2','p3','p4'].forEach(p=>document.getElementById(p).classList.remove('active'));document.getElementById('adm-page').classList.remove('active');document.getElementById('al-page').classList.add('vis');}
-function buildSchoolOpts(){const ss=document.getElementById('schoolSel');const cur=ss.value;ss.innerHTML=`<option value="">${tr('chooseschool')}</option>`;Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;ss.appendChild(o);});ss.value=cur;}
-function onSchoolChange(){const school=document.getElementById('schoolSel').value;const ls=document.getElementById('levelSel');ls.innerHTML=`<option value="">${tr('chooselevel')}</option>`;if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{const o=document.createElement('option');o.value=lv;o.textContent=lv;ls.appendChild(o);});}
+let filtEtab='';
+function getEtablissement(level){
+  if(!level)return null;
+  const l=level.toLowerCase().trim().replace(/['’‘èé]/g,c=>c==='è'||c==='é'?'e':c);
+  if(/^(cp|ce1|ce2|cm1|cm2|maternelle|ps|ms|gs|cp1|cp2)\b/.test(l))return 'Primaire';
+  if(/^[3456]\s*(e|em|eme|ieme|ième|eme|ème)\b/.test(l)||/^(troisieme|quatrieme|cinquieme|sixieme)/.test(l))return 'Collège';
+  if(/^2\s*(e|em|eme|nd|nde)\b/.test(l)||/^(deuxieme|seconde)\b/.test(l))return 'Lycée';
+  if(/^1\s*(e|er|re|ere|ère|ere)\b/.test(l)||/^(premiere|première)\b/.test(l))return 'Lycée';
+  if(/^term/.test(l))return 'Lycée';
+  return null;
+}
+function etabColor(e){return e==='Primaire'?{bg:'#D1FAE5',tx:'#065F46'}:e==='Collège'?{bg:'#DBEAFE',tx:'#1E40AF'}:e==='Lycée'?{bg:'#EDE9FE',tx:'#5B21B6'}:{bg:'#F1F5F9',tx:'#475569'};}
+function setEtab(type){filtEtab=type;document.querySelectorAll('.etab-btn').forEach(b=>b.classList.toggle('on',b.dataset.type===type));buildSchoolOpts();document.getElementById('levelSel').innerHTML=`<option value="">${tr('chooselevel')}</option>`;}
+function buildSchoolOpts(){const ss=document.getElementById('schoolSel');const cur=ss.value;ss.innerHTML=`<option value="">${tr('chooseschool')}</option>`;Object.keys(schoolLevels).forEach(s=>{if(filtEtab&&filtEtab!=='Tous'){const ok=(schoolLevels[s]||[]).some(lv=>getEtablissement(lv)===filtEtab);if(!ok)return;}const o=document.createElement('option');o.value=s;o.textContent=s;ss.appendChild(o);});ss.value=cur;}
+function onSchoolChange(){const school=document.getElementById('schoolSel').value;const ls=document.getElementById('levelSel');ls.innerHTML=`<option value="">${tr('chooselevel')}</option>`;if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{if(filtEtab&&filtEtab!=='Tous'&&getEtablissement(lv)!==filtEtab)return;const o=document.createElement('option');o.value=lv;o.textContent=lv;ls.appendChild(o);});}
 function doSearch(q){document.getElementById('srchClr').classList.toggle('vis',q.length>0);if(!q.trim()){if(filtSchool&&filtLv)renderGrid(_books);else clearArea();return;}const words=q.toLowerCase().trim().split(/\s+/);const seen=new Set();const res=Object.values(booksDB).flat().filter(b=>{if(seen.has(b.id))return false;const hay=(b.title+' '+b.subject+' '+(b.ean||'')).toLowerCase();if(words.some(w=>hay.includes(w))){seen.add(b.id);return true;}return false;});if(!res.length){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">🔍</span><div class="es-title">${lang==='fr'?'Aucun résultat':'No results'}</div><p>${lang==='fr'?'Essayez un autre mot.':'Try a different keyword.'}</p></div>`;return;}document.getElementById('booksArea').innerHTML=`<div class="rbanner">🔍 ${res.length} ${lang==='fr'?'résultat(s)':'result(s)'}</div><div class="bgrid">${res.map(bHTML).join('')}</div>`;document.getElementById('cartBar').classList.add('vis');}
 function clearSearch(){document.getElementById('srch').value='';document.getElementById('srchClr').classList.remove('vis');if(filtSchool&&filtLv)renderGrid(_books);else clearArea();}
 function clearArea(){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">📚</span><div class="es-title">${tr('empty1')}</div><p>${tr('empty2')}</p></div>`;}
@@ -191,61 +204,146 @@ function showExcelMapper(){
   const autoOpt=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().includes(t)));return i>=0?i:-1;};
   const iT=auto('titre','title','nom','livre','designation');
   const iE=auto('ean','isbn','ref','code','barr');
-  const iS=auto('ecole','école','school','etabl');
-  const iL=auto('niveau','niveaux','level','annee','année');
-  const iC=autoOpt('classe','class','section');
+  const iSub=autoOpt('matiere','matière','subject','discipline');
   const iP=autoOpt('prix','price','tarif','montant');
-  ['xlColTitle','xlColEan','xlColSchool','xlColLevel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
-  ['xlColClasse','xlColPrix'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=optsOpt;});
+  ['xlColTitle','xlColEan'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+  ['xlColSubject','xlColPrix'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=optsOpt;});
   const s=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
-  s('xlColTitle',iT);s('xlColEan',iE);s('xlColSchool',iS);s('xlColLevel',iL);s('xlColClasse',iC);s('xlColPrix',iP);
+  s('xlColTitle',iT);s('xlColEan',iE);s('xlColSubject',iSub);s('xlColPrix',iP);
+  // Populate destination school selector
+  const ds=document.getElementById('xlDestSchool');
+  if(ds){ds.innerHTML='<option value="">— Choisir une école —</option>'+Object.keys(schoolLevels).map(s=>`<option value="${s}">${s}</option>`).join('');xlUpdateDestLevels();}
   const w=document.getElementById('xlMapWrap');if(w)w.style.display='block';
   xlUpdatePreview();
 }
 function xlUpdatePreview(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
   const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
-  const iT=g('xlColTitle'),iE=g('xlColEan'),iS=g('xlColSchool'),iL=g('xlColLevel');
-  const iC=go('xlColClasse'),iP=go('xlColPrix');
+  const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix');
   const prev=_xlRows.slice(0,6);
   const tb=document.getElementById('xlPrevBody');
-  if(tb)tb.innerHTML=prev.map(r=>{
-    const niv=String(r[iL]||'');const cls=iC>=0?String(r[iC]||'').trim():'';
-    const niveau=cls?cls:niv;
-    const prix=iP>=0?(r[iP]||'—'):'—';
-    return `<tr><td>${r[iT]||'—'}</td><td style="font-size:.75rem;color:var(--tx3)">${r[iE]||'—'}</td><td>${r[iS]||'—'}</td><td>${niveau||'—'}</td><td style="color:var(--tx3)">${cls||'—'}</td><td style="color:var(--green)">${prix}</td></tr>`;
-  }).join('');
+  if(tb)tb.innerHTML=prev.map(r=>`<tr>
+    <td>${r[iT]||'—'}</td>
+    <td style="font-size:.75rem;color:var(--tx3)">${r[iE]||'—'}</td>
+    <td style="color:var(--tx2)">${iSub>=0?(r[iSub]||'—'):'—'}</td>
+    <td style="color:var(--green)">${iP>=0?(r[iP]||'—'):'—'}</td>
+  </tr>`).join('');
   const cnt=document.getElementById('xlCount');
-  if(cnt)cnt.textContent=_xlRows.length+' ligne(s) détectée(s) — aperçu des 6 premières';
+  if(cnt)cnt.textContent=_xlRows.length+' ligne(s) détectée(s) · aperçu des 6 premières';
 }
+function xlUpdateDestLevels(){
+  const school=document.getElementById('xlDestSchool')?document.getElementById('xlDestSchool').value:'';
+  const dl=document.getElementById('xlDestLevel');
+  if(!dl)return;
+  dl.innerHTML='<option value="">— Choisir un niveau —</option>';
+  if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{const o=document.createElement('option');o.value=lv;o.textContent=lv;dl.appendChild(o);});
+}
+let _xlSchoolMap={};
+const ETAB_PREFIX={'Primaire':'École Primaire','Collège':'Collège','Lycée':'Lycée'};
+function xlEtabKey(exSchool,etab){return exSchool+'|||'+(etab||'Autre');}
+function xlFindBestSchool(query,etab,candidates){
+  if(!candidates.length)return null;
+  const clean=s=>s.toLowerCase().replace(/['''\-_\.]/g,' ').split(/\s+/).filter(t=>t.length>1);
+  const qTokens=clean(query);
+  // First: try to find school that matches both name tokens AND etablissement type
+  const prefix=(ETAB_PREFIX[etab]||'').toLowerCase();
+  let bestScore=0,bestMatch=null;
+  candidates.forEach(cand=>{
+    const cTokens=clean(cand);
+    let score=0;
+    qTokens.forEach(qt=>{if(cTokens.some(ct=>ct===qt||ct.startsWith(qt)||qt.startsWith(ct)))score++;});
+    if(score===0)return;
+    // Bonus if the candidate school name contains the etab prefix
+    const candLow=cand.toLowerCase();
+    if(prefix&&candLow.includes(prefix.split(' ')[0]))score+=0.5;
+    const norm=score/Math.max(qTokens.length,1);
+    if(norm>bestScore){bestScore=norm;bestMatch=cand;}
+  });
+  return bestScore>0?bestMatch:null;
+}
+function xlShowSchoolMap(){
+  const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
+  const iS=g('xlColSchool'),iL=g('xlColLevel');
+  // Build unique (excelSchool, etabType) pairs
+  const pairs=[];const seen=new Set();
+  _xlRows.forEach(r=>{
+    const ex=String(r[iS]||'').trim();
+    const lv=String(r[iL]||'').trim();
+    const et=getEtablissement(lv)||'Autre';
+    const k=xlEtabKey(ex,et);
+    if(ex&&!seen.has(k)){seen.add(k);pairs.push({ex,et});}
+  });
+  const existing=Object.keys(schoolLevels);
+  _xlSchoolMap={};
+  pairs.forEach(({ex,et})=>{
+    const suggested=xlFindBestSchool(ex,et,existing);
+    const autoName=(ETAB_PREFIX[et]?ETAB_PREFIX[et]+' ':'')+ex;
+    _xlSchoolMap[xlEtabKey(ex,et)]=suggested||'__NEW__:'+autoName;
+  });
+  const existOpts=existing.map(s=>`<option value="${s}">${s}</option>`).join('');
+  const tbody=document.getElementById('xlSchoolMapBody');
+  if(!tbody)return;
+  const etabBadge=et=>{const col=etabColor(et);return`<span style="font-size:.7rem;background:${col.bg};color:${col.tx};border-radius:4px;padding:1px 8px;font-weight:700">${et}</span>`;};
+  tbody.innerHTML=pairs.map(({ex,et})=>{
+    const mapVal=_xlSchoolMap[xlEtabKey(ex,et)];
+    const isNew=mapVal.startsWith('__NEW__:');
+    const newName=isNew?mapVal.slice(8):'';
+    const badge=isNew
+      ?`<span style="background:#FEF3C7;color:#B45309;border-radius:4px;padding:1px 8px;font-size:.72rem">Sera créée</span>`
+      :`<span style="background:#D1FAE5;color:#065F46;border-radius:4px;padding:1px 8px;font-size:.72rem">Trouvée ✓</span>`;
+    const newOpt=`<option value="__NEW__:${newName}">➕ Créer : "${newName}"</option>`;
+    return `<tr>
+      <td style="font-weight:600">${ex}</td>
+      <td>${etabBadge(et)}</td>
+      <td style="text-align:center;color:var(--tx3)">→</td>
+      <td><select class="adm-inp xl-smap" data-key="${xlEtabKey(ex,et)}" style="width:100%;font-size:.82rem">${newOpt}${existOpts}</select></td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+  // Set selected values
+  pairs.forEach(({ex,et})=>{
+    const key=xlEtabKey(ex,et);
+    const mapVal=_xlSchoolMap[key];
+    const sel=tbody.querySelector(`[data-key="${key}"]`);
+    if(!sel)return;
+    if(mapVal.startsWith('__NEW__:')){sel.value=mapVal;}
+    else{sel.value=mapVal;if(sel.value!==mapVal){sel.insertAdjacentHTML('afterbegin',`<option value="${mapVal}" selected>${mapVal}</option>`);}}
+    sel.addEventListener('change',()=>{
+      const tr=sel.closest('tr');const badge=tr.querySelector('td:last-child');
+      if(badge)badge.innerHTML=sel.value.startsWith('__NEW__:')
+        ?`<span style="background:#FEF3C7;color:#B45309;border-radius:4px;padding:1px 8px;font-size:.72rem">Sera créée</span>`
+        :`<span style="background:#D1FAE5;color:#065F46;border-radius:4px;padding:1px 8px;font-size:.72rem">Confirmée ✓</span>`;
+    });
+  });
+  document.getElementById('xlSchoolMapWrap').style.display='block';
+  document.getElementById('xlSchoolMapWrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function xlBackToStep1(){document.getElementById('xlSchoolMapWrap').style.display='none';}
 function doExcelImport(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
   const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
-  const iT=g('xlColTitle'),iE=g('xlColEan'),iS=g('xlColSchool'),iL=g('xlColLevel');
-  const iC=go('xlColClasse'),iP=go('xlColPrix');
+  const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix');
+  const school=document.getElementById('xlDestSchool')?document.getElementById('xlDestSchool').value:'';
+  const level=document.getElementById('xlDestLevel')?document.getElementById('xlDestLevel').value:'';
   const mode=document.getElementById('xlMode')?document.getElementById('xlMode').value:'merge';
   if(!_xlRows.length){alert('Aucune donnée à importer.');return;}
-  if(mode==='replace'){Object.keys(booksDB).forEach(k=>{booksDB[k]=[];});}
+  if(!school||!level){alert('Veuillez choisir une école et un niveau de destination.');return;}
+  const key=gk(school,level);
+  if(!booksDB[key])booksDB[key]=[];
+  if(mode==='replace')booksDB[key]=[];
   let added=0,skipped=0;
   _xlRows.forEach(r=>{
     const title=String(r[iT]||'').trim();
     const ean=String(r[iE]||'').trim();
-    const school=String(r[iS]||'').trim();
-    const niv=String(r[iL]||'').trim();
-    const cls=iC>=0?String(r[iC]||'').trim():'';
-    const level=cls?cls:niv;
+    const subject=iSub>=0?String(r[iSub]||'').trim():'';
     const prixRaw=iP>=0?parseFloat(String(r[iP]||'').replace(',','.')):0;
     const prix=isNaN(prixRaw)?0:prixRaw;
-    if(!title||!school||!level){skipped++;return;}
-    if(!schoolLevels[school])schoolLevels[school]=[];
-    if(!schoolLevels[school].includes(level))schoolLevels[school].push(level);
-    const key=gk(school,level);
-    if(!booksDB[key])booksDB[key]=[];
+    if(!title){skipped++;return;}
     if(mode==='merge'){
       const exists=booksDB[key].some(b=>(ean&&b.ean===ean)||(b.title===title));
       if(exists){skipped++;return;}
     }
-    booksDB[key].push({id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,ean,subject:'',priceHT:prix,color:''});
+    booksDB[key].push({id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,ean,subject,priceHT:prix,color:''});
     added++;
   });
   saveDataToStorage();
@@ -414,7 +512,7 @@ function saveCreds(){const u=document.getElementById('s-usr').value.trim();const
 function renderSchoolTags(){document.getElementById('schoolTags').innerHTML=Object.keys(schoolLevels).map((s,i)=>`<span class="tag">${s} <span class="xt" onclick="removeSchool(${i})">✕</span></span>`).join('');buildSchoolOpts();buildAdmSchOpts();const sfl=document.getElementById('schoolForLv');const cur=sfl.value;sfl.innerHTML='<option value="">— Sélectionner école —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sfl.appendChild(o);});sfl.value=cur;}
 function addSchool(){const v=document.getElementById('newSchool').value.trim();if(!v||v in schoolLevels)return;schoolLevels[v]=[];if(autoSave)saveDataToStorage();renderSchoolTags();document.getElementById('newSchool').value='';showToast('✅ École ajoutée');}
 function removeSchool(i){const k=Object.keys(schoolLevels);delete schoolLevels[k[i]];if(autoSave)saveDataToStorage();renderSchoolTags();renderLvTags();}
-function renderLvTags(){const school=document.getElementById('schoolForLv').value;const c=document.getElementById('levelTags');if(!school){c.innerHTML='';return;}c.innerHTML=(schoolLevels[school]||[]).map((lv,i)=>`<span class="tag lv">${lv} <span class="xt" onclick="removeLv('${school}',${i})">✕</span></span>`).join('');onSchoolChange();}
+function renderLvTags(){const school=document.getElementById('schoolForLv').value;const c=document.getElementById('levelTags');if(!school){c.innerHTML='';return;}c.innerHTML=(schoolLevels[school]||[]).map((lv,i)=>{const e=getEtablissement(lv);const col=etabColor(e);const badge=e?`<span style="font-size:.6rem;background:${col.bg};color:${col.tx};border-radius:3px;padding:0 5px;margin-left:4px;font-weight:700">${e}</span>`:'';return`<span class="tag lv">${lv}${badge} <span class="xt" onclick="removeLv('${school}',${i})">✕</span></span>`;}).join('');onSchoolChange();}
 function addLevel(){const school=document.getElementById('schoolForLv').value;const v=document.getElementById('newLv').value.trim();if(!school||!v)return;if(!schoolLevels[school])schoolLevels[school]=[];if(!schoolLevels[school].includes(v))schoolLevels[school].push(v);if(autoSave)saveDataToStorage();renderLvTags();document.getElementById('newLv').value='';showToast('✅ Niveau ajouté');}
 function removeLv(school,i){if(schoolLevels[school])schoolLevels[school].splice(i,1);if(autoSave)saveDataToStorage();renderLvTags();}
 function buildAdmSchOpts(){const sel=document.getElementById('edSch');const cur=sel.value;sel.innerHTML='<option value="">— École —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});sel.value=cur;}
