@@ -331,10 +331,14 @@ function doExcelImport(){
     // Build full school name with etablissement prefix
     const etab=getEtablissement(level)||'';
     const prefix=ETAB_PREFIX[etab]?ETAB_PREFIX[etab]+' ':'';
-    // Find existing school matching rawSchool + etab type, or create
+    const pLow=prefix.toLowerCase().trim();
+    const rLow=rawSchool.toLowerCase();
+    // Find existing school: exact match OR prefix+rawSchool match (MUST respect etab type)
     const existingMatch=Object.keys(schoolLevels).find(s=>{
-      const sLow=s.toLowerCase();const rLow=rawSchool.toLowerCase();
-      return sLow===rLow||sLow.endsWith(' '+rLow)||sLow===prefix.toLowerCase().trim()+' '+rLow;
+      const sLow=s.toLowerCase();
+      if(sLow===rLow)return true; // exact match (rawSchool already has full name)
+      if(pLow&&sLow===pLow+' '+rLow)return true; // "Collège GF" matches rawSchool="GF" etab=Collège
+      return false;
     });
     const school=existingMatch||(prefix+rawSchool);
     // Create school if missing
