@@ -218,7 +218,7 @@ function showExcelMapper(){
 function xlUpdatePreview(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
   const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
-  const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix'),iS=g('xlColSchool'),iL=g('xlColLevel');
+  const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix');
   const prev=_xlRows.slice(0,6);
   const tb=document.getElementById('xlPrevBody');
   if(tb)tb.innerHTML=prev.map(r=>`<tr>
@@ -226,8 +226,6 @@ function xlUpdatePreview(){
     <td style="font-size:.73rem;color:var(--tx3)">${r[iE]||'—'}</td>
     <td style="color:var(--tx2)">${iSub>=0?(r[iSub]||'—'):'—'}</td>
     <td style="color:var(--green)">${iP>=0?(r[iP]||'—'):'—'}</td>
-    <td style="font-size:.73rem;color:var(--navy)">${r[iS]||'—'}</td>
-    <td style="font-size:.73rem">${r[iL]||'—'}</td>
   </tr>`).join('');
   const cnt=document.getElementById('xlCount');
   if(cnt)cnt.textContent=_xlRows.length+' ligne(s) détectée(s) · aperçu des 6 premières';
