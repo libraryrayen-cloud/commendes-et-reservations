@@ -314,10 +314,11 @@ function xlShowSchoolMap(){
 }
 function xlBackToStep1(){document.getElementById('xlSchoolMapWrap').style.display='none';}
 function doExcelImport(){
-  const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
-  const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
+  try{
+  const g=id=>{const el=document.getElementById(id);return el&&el.value!==''?+el.value:0;};
+  const go=id=>{const el=document.getElementById(id);return el&&el.value!==''?+el.value:-1;};
   const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix'),iS=g('xlColSchool'),iL=g('xlColLevel');
-  if(!_xlRows.length){alert('Aucune donnée à importer.');return;}
+  if(!_xlRows.length){alert('Aucune donnée à importer. Veuillez d\'abord charger un fichier Excel.');return;}
   let added=0,skipped=0,schoolsCreated=0,levelsCreated=0;
   _xlRows.forEach(r=>{
     const title=String(r[iT]||'').trim();
@@ -325,8 +326,8 @@ function doExcelImport(){
     const subject=iSub>=0?String(r[iSub]||'').trim():'';
     const prixRaw=iP>=0?parseFloat(String(r[iP]||'').replace(',','.')):0;
     const prix=isNaN(prixRaw)?0:prixRaw;
-    const rawSchool=String(r[iS]||'').trim();
-    const level=String(r[iL]||'').trim();
+    const rawSchool=String(r[iS]||'').trim().replace(/[.#$\/\[\]]/g,'-').replace(/\s+/g,' ');
+    const level=String(r[iL]||'').trim().replace(/[.#$\/\[\]]/g,'-').replace(/\s+/g,' ');
     if(!title||!rawSchool||!level){skipped++;return;}
     // Build full school name with etablissement prefix
     const etab=getEtablissement(level)||'';
@@ -355,9 +356,11 @@ function doExcelImport(){
   });
   saveDataToStorage();
   if(fbDb){
+    const fbSafe=k=>k.replace(/[.#$\/\[\]]/g,'_');
     const bl={};
-    Object.keys(booksDB).forEach(k=>{bl[k]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject||'',priceHT:b.priceHT||0,color:b.color||''}));});
-    fbDb.ref('librairie/config').update({schoolLevels,booksDB:bl}).catch(()=>{});
+    Object.keys(booksDB).forEach(k=>{bl[fbSafe(k)]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject||'',priceHT:b.priceHT||0,color:b.color||''}));});
+    const ssl={};Object.keys(schoolLevels).forEach(s=>{ssl[fbSafe(s)]=schoolLevels[s];});
+    fbDb.ref('librairie/config').update({schoolLevels:ssl,booksDB:bl}).catch(()=>{});
   }
   const w=document.getElementById('xlMapWrap');if(w)w.style.display='none';
   const fn=document.getElementById('xlFileName');if(fn)fn.textContent='Aucun fichier sélectionné';
@@ -367,6 +370,7 @@ function doExcelImport(){
   if(schoolsCreated)msg.push('🏫 '+schoolsCreated+' école(s) créée(s)');
   if(levelsCreated)msg.push('📋 '+levelsCreated+' niveau(x) créé(s)');
   alert(msg.join('\n'));
+  }catch(ex){alert('Erreur lors de l\'importation : '+ex.message);}
 }
 let _fourAgg=[];
 function renderFournisseur(){
