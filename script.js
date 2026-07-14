@@ -183,19 +183,21 @@ let _xlRows=[],_xlHeaders=[];
 function handleExcelFile(input){
   const file=input.files[0];if(!file)return;
   const nameEl=document.getElementById('xlFileName');if(nameEl)nameEl.textContent=file.name;
+  if(typeof XLSX==='undefined'){alert('La bibliothèque de lecture Excel n\'est pas chargée. Vérifiez votre connexion internet et rechargez la page.');return;}
   const reader=new FileReader();
   reader.onload=e=>{
     try{
-      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
-      const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      if(!data||data.length<2){alert('Fichier vide ou invalide.');return;}
-      _xlHeaders=(data[0]||[]).map(String);
-      _xlRows=data.slice(1).filter(r=>r.some(c=>String(c).trim()!==''));
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(!rows||rows.length<2){alert('Fichier vide ou invalide.');return;}
+      _xlHeaders=(rows[0]||[]).map(String);
+      _xlRows=rows.slice(1).filter(r=>r.some(c=>String(c).trim()!==''));
       showExcelMapper();
-    }catch(ex){alert('Erreur lors de la lecture du fichier. Vérifiez que c\'est un fichier Excel ou CSV valide.');}
+    }catch(ex){alert('Erreur lors de la lecture du fichier : '+ex.message);}
   };
-  reader.readAsBinaryString(file);
+  reader.readAsArrayBuffer(file);
 }
 function showExcelMapper(){
   const opts=_xlHeaders.map((h,i)=>`<option value="${i}">${h||'Colonne '+(i+1)}</option>`).join('');
