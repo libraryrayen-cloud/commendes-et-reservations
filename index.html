@@ -351,7 +351,7 @@
         <div id="acompteInputArea" style="display:flex;align-items:center;gap:4px;padding:0 10px 0 0">
           <input id="acompteInp" type="number" min="0" step="0.001" placeholder="30%" title="Laisser vide = 30% · Minimum 30% du total"
             style="width:72px;padding:3px 6px;border-radius:4px;border:none;font-size:.78rem;font-weight:600;outline:none;text-align:center;background:rgba(255,255,255,.9);color:#1B1B1F"
-            oninput="validateAcompteInp(this)">
+            oninput="validateAcompteInp(this)" onchange="saveAcompteDefault(this)">
           <span style="color:rgba(255,255,255,.7);font-size:.75rem">TND</span>
         </div>
       </div>
@@ -620,6 +620,6 @@
   </div>
 </div>
 
-<script src="script.js?v=31"></script>
+<script src="script.js?v=33"></script>
 </body>
 </html>
