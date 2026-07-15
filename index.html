@@ -541,7 +541,7 @@
                 <tbody id="xlPrevBody"></tbody>
               </table>
             </div>
-            <button class="save-btn" onclick="doExcelImport()" style="background:var(--green);font-size:.9rem;padding:.55rem 1.6rem">✅ Importer automatiquement</button>
+            <button class="save-btn" id="xlImportBtn" onclick="doExcelImport()" style="background:var(--green);font-size:.9rem;padding:.55rem 1.6rem">✅ Importer automatiquement</button>
           </div>
         </div>
         <!-- Stockage & Backup -->
@@ -599,7 +599,7 @@
             </table>
           </div>
           <div style="margin-top:12px">
-            <button class="save-btn" style="background:var(--navy);color:white" onclick="dlFournisseurPDF()">📄 Télécharger PDF</button>
+            <button class="save-btn" style="background:var(--navy);color:white" onclick="dlFournisseurExcel()">📊 Télécharger Excel</button>
           </div>
         </div>
       </div>
@@ -620,6 +620,6 @@
   </div>
 </div>
 
-<script src="script.js?v=26"></script>
+<script src="script.js?v=31"></script>
 </body>
 </html>

@@ -138,7 +138,7 @@ function etabColor(e){return e==='Primaire'?{bg:'#D1FAE5',tx:'#065F46'}:e==='Col
 function setEtab(type){filtEtab=type;document.querySelectorAll('.etab-btn').forEach(b=>b.classList.toggle('on',b.dataset.type===type));buildSchoolOpts();document.getElementById('levelSel').innerHTML=`<option value="">${tr('chooselevel')}</option>`;}
 function buildSchoolOpts(){const ss=document.getElementById('schoolSel');const cur=ss.value;ss.innerHTML=`<option value="">${tr('chooseschool')}</option>`;Object.keys(schoolLevels).forEach(s=>{if(filtEtab&&filtEtab!=='Tous'){const ok=(schoolLevels[s]||[]).some(lv=>getEtablissement(lv)===filtEtab);if(!ok)return;}const o=document.createElement('option');o.value=s;o.textContent=s;ss.appendChild(o);});ss.value=cur;}
 function onSchoolChange(){const school=document.getElementById('schoolSel').value;const ls=document.getElementById('levelSel');ls.innerHTML=`<option value="">${tr('chooselevel')}</option>`;if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{if(filtEtab&&filtEtab!=='Tous'&&getEtablissement(lv)!==filtEtab)return;const o=document.createElement('option');o.value=lv;o.textContent=lv;ls.appendChild(o);});}
-function doSearch(q){document.getElementById('srchClr').classList.toggle('vis',q.length>0);if(!q.trim()){if(filtSchool&&filtLv)renderGrid(_books);else clearArea();return;}const words=q.toLowerCase().trim().split(/\s+/);const seen=new Set();const res=Object.values(booksDB).flat().filter(b=>{if(seen.has(b.id))return false;const hay=(b.title+' '+b.subject+' '+(b.ean||'')).toLowerCase();if(words.some(w=>hay.includes(w))){seen.add(b.id);return true;}return false;});if(!res.length){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">🔍</span><div class="es-title">${lang==='fr'?'Aucun résultat':'No results'}</div><p>${lang==='fr'?'Essayez un autre mot.':'Try a different keyword.'}</p></div>`;return;}document.getElementById('booksArea').innerHTML=`<div class="rbanner">🔍 ${res.length} ${lang==='fr'?'résultat(s)':'result(s)'}</div><div class="bgrid">${res.map(bHTML).join('')}</div>`;document.getElementById('cartBar').classList.add('vis');}
+function doSearch(q){document.getElementById('srchClr').classList.toggle('vis',q.length>0);if(!q.trim()){if(filtSchool&&filtLv)renderGrid(_books);else clearArea();return;}const words=q.toLowerCase().trim().split(/\s+/);const seen=new Set();const res=Object.values(booksDB).flat().filter(b=>{const dedupKey=b.ean&&b.ean.trim()?'ean:'+b.ean.trim():'title:'+b.title.trim().toLowerCase();if(seen.has(dedupKey))return false;const hay=(b.title+' '+b.subject+' '+(b.ean||'')).toLowerCase();if(words.some(w=>hay.includes(w))){seen.add(dedupKey);return true;}return false;});if(!res.length){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">🔍</span><div class="es-title">${lang==='fr'?'Aucun résultat':'No results'}</div><p>${lang==='fr'?'Essayez un autre mot.':'Try a different keyword.'}</p></div>`;return;}document.getElementById('booksArea').innerHTML=`<div class="rbanner">🔍 ${res.length} ${lang==='fr'?'résultat(s)':'result(s)'}</div><div class="bgrid">${res.map(bHTML).join('')}</div>`;document.getElementById('cartBar').classList.add('vis');}
 function clearSearch(){document.getElementById('srch').value='';document.getElementById('srchClr').classList.remove('vis');if(filtSchool&&filtLv)renderGrid(_books);else clearArea();}
 function clearArea(){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">📚</span><div class="es-title">${tr('empty1')}</div><p>${tr('empty2')}</p></div>`;}
 function gk(s,l){return s+'|'+l;}
@@ -218,8 +218,17 @@ function showExcelMapper(){
     });
     return best;
   };
-  const iT=findCol('designation','titre','title','nom livre','libelle','lib','description');
+  // Content sniffing: a column full of digit-only codes is an EAN/ref column, not a title
+  const sampleVals=(colIdx,n=10)=>{const vals=[];for(let i=0;i<_xlRows.length&&vals.length<n;i++){const v=String(_xlRows[i][colIdx]??'').trim();if(v)vals.push(v);}return vals;};
+  const looksLikeCode=v=>/^[\d\s\-]{5,}$/.test(v);
+  const isMostlyCodeCol=colIdx=>{if(colIdx<0)return false;const vals=sampleVals(colIdx);if(!vals.length)return false;return vals.filter(looksLikeCode).length/vals.length>=0.6;};
   const iE=findCol('ean','isbn','code barre','barcode','ref article','reference','ref');
+  let iT=findCol('designation','titre','title','nom livre','libelle','lib','description');
+  // Guard: the Title column must hold text, must differ from the EAN column, and must not itself look like a code column
+  if(iT<0||iT===iE||isMostlyCodeCol(iT)){
+    const altT=_xlHeaders.map((_,i)=>i).find(i=>i!==iE&&!isMostlyCodeCol(i)&&_xlRows.some(r=>String(r[i]||'').trim()!==''));
+    if(altT!==undefined)iT=altT;
+  }
   const iSub=findCol('matiere','matieres','discipline','subject','famille','categorie');
   const iP=findCol('prix','price','tarif','montant','pvt','pvttc');
   const iS=findCol('ecole','etablissement','school','institution');
@@ -240,10 +249,13 @@ function xlCheckConflicts(){
     const v=g(id);if(v<0)return;
     if(used[v]){conflict=true;}else used[v]=label;
   });
+  const titleEanClash=g('xlColTitle')===g('xlColEan');
   let warn=document.getElementById('xlConflictWarn');
   if(!warn){warn=document.createElement('div');warn.id='xlConflictWarn';warn.style.cssText='margin-bottom:10px;padding:8px 12px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;font-size:.8rem;color:#92400E;font-weight:600';const w=document.getElementById('xlMapWrap');if(w)w.insertBefore(warn,w.querySelector('.twrap'));}
   warn.style.display=conflict?'block':'none';
-  warn.textContent=conflict?'⚠️ Two columns point to the same index — please check the dropdowns above before importing.':'';
+  warn.textContent=titleEanClash?'🚫 Les colonnes Titre et EAN/Ref pointent vers la même colonne — corrigez avant d\'importer, sinon le titre affichera le code EAN.':(conflict?'⚠️ Deux colonnes pointent vers le même index — vérifiez les listes ci-dessus avant d\'importer.':'');
+  const btn=document.getElementById('xlImportBtn');
+  if(btn){btn.disabled=titleEanClash;btn.style.opacity=titleEanClash?'.5':'1';btn.style.cursor=titleEanClash?'not-allowed':'pointer';}
 }
 function xlUpdatePreview(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
@@ -347,6 +359,7 @@ function doExcelImport(){
   const go=id=>{const el=document.getElementById(id);return el&&el.value!==''?+el.value:-1;};
   const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix'),iS=g('xlColSchool'),iL=g('xlColLevel');
   if(!_xlRows.length){alert('Aucune donnée à importer. Veuillez d\'abord charger un fichier Excel.');return;}
+  if(iT===iE){alert('🚫 Les colonnes Titre et EAN/Ref pointent vers la même colonne. Corrigez le mappage avant d\'importer.');return;}
   let added=0,skipped=0,schoolsCreated=0,levelsCreated=0;
   _xlRows.forEach(r=>{
     const title=String(r[iT]||'').trim();
@@ -466,63 +479,19 @@ function genFournisseurCmd(){
   const res=document.getElementById('fourResult');
   if(res){res.style.display='block';res.scrollIntoView({behavior:'smooth',block:'start'});}
 }
-function dlFournisseurPDF(){
+function dlFournisseurExcel(){
   if(!_fourAgg||!_fourAgg.length){alert('Générez d\'abord la commande.');return;}
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({unit:'mm',format:'a4'});
-  const W=210,H=297,M=14;
-  doc.setFillColor(0,168,120);doc.rect(0,0,W,22,'F');
-  doc.setFillColor(232,96,28);doc.rect(0,22,W,3,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(15);
-  doc.text(libName,M,10);
-  doc.setFontSize(8.5);doc.setFont('helvetica','normal');
-  doc.text(libAddr+' · Tél : '+libTel,M,16);
-  doc.setTextColor(27,43,75);doc.setFont('helvetica','bold');doc.setFontSize(13);
-  doc.text('BON DE COMMANDE FOURNISSEUR',W/2,33,{align:'center'});
-  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,110,130);
-  doc.text('Date : '+new Date().toLocaleDateString('fr-FR'),W-M,33,{align:'right'});
-  doc.setTextColor(27,43,75);doc.setFontSize(8);
-  const totalQty=_fourAgg.reduce((s,x)=>s+x.qty,0);
-  doc.text(_fourAgg.length+' titre(s) · '+totalQty+' exemplaire(s) au total',M,40);
-  let y=47;
-  const cT=M,cE=M+100,cQ=W-M;
-  doc.setFillColor(27,43,75);doc.rect(M,y,W-2*M,8,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-  doc.text('Titre',cT+2,y+5.5);doc.text('EAN',cE,y+5.5);doc.text('Qté',cQ,y+5.5,{align:'right'});
-  y+=8;
-  _fourAgg.forEach((r,i)=>{
-    if(y+8>H-20){
-      doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');
-      doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');
-      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);
-      doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});
-      doc.addPage();y=20;
-      doc.setFillColor(27,43,75);doc.rect(M,y,W-2*M,8,'F');
-      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-      doc.text('Titre',cT+2,y+5.5);doc.text('EAN',cE,y+5.5);doc.text('Qté',cQ,y+5.5,{align:'right'});
-      y+=8;
-    }
-    doc.setFillColor(i%2===0?255:245,i%2===0?255:247,i%2===0?255:255);
-    doc.rect(M,y,W-2*M,8,'F');
-    doc.setTextColor(27,43,75);doc.setFont('helvetica','normal');doc.setFontSize(8);
-    const tit=r.title.length>52?r.title.substring(0,51)+'…':r.title;
-    doc.text(tit,cT+2,y+5.3);
-    doc.setTextColor(100,110,130);doc.text(r.ean,cE,y+5.3);
-    doc.setTextColor(232,96,28);doc.setFont('helvetica','bold');doc.setFontSize(9);
-    doc.text(String(r.qty),cQ,y+5.5,{align:'right'});
-    y+=8;
-  });
-  y+=4;
-  doc.setDrawColor(200,200,210);doc.setLineWidth(0.3);doc.line(M,y,W-M,y);y+=6;
-  doc.setTextColor(27,43,75);doc.setFont('helvetica','bold');doc.setFontSize(9);
-  doc.text('Total : '+totalQty+' exemplaire(s)',W-M,y,{align:'right'});
-  doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');
-  doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-  doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});
-  doc.setFont('helvetica','normal');doc.setFontSize(7);
-  doc.text('Document généré le '+new Date().toLocaleDateString('fr-FR'),W/2,H-6,{align:'center'});
-  doc.save('commande-fournisseur-'+new Date().toISOString().slice(0,10)+'.pdf');
+  if(typeof XLSX==='undefined'){alert('La bibliothèque Excel n\'est pas chargée. Vérifiez votre connexion internet et rechargez la page.');return;}
+  const aoa=[
+    ['Titre / Désignation','EAN / Ref','Quantité'],
+    ..._fourAgg.map(r=>[r.title,r.ean,r.qty])
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:55},{wch:18},{wch:10}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Commande fournisseur');
+  XLSX.writeFile(wb,'commande-fournisseur-'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('📊 Excel téléchargé');
 }
 function aTab(i){curAT=i;document.querySelectorAll('.atab').forEach((t,j)=>t.classList.toggle('on',j===i));document.querySelectorAll('.tpanel').forEach((p,j)=>p.classList.toggle('on',j===i));if(i===0)renderDash();if(i===1)renderOrders();if(i===2)renderResvs();if(i===3)renderClients();if(i===4)renderReceipts();if(i===5)updateStorageInfo();if(i===6)renderFournisseur();}
 function toggleDelivery(id){const o=orders.find(r=>String(r.id)===String(id));if(!o)return;o.delivered=!o.delivered;saveDataToStorage();renderOrders();showToast(o.delivered?'📦 Marquée comme livrée':'🕐 Marquée comme non livrée');}
@@ -538,12 +507,40 @@ function dlPDFById(id){const r=[...orders,...reservations].find(r=>String(r.id)=
 function pdfDrawFooter(doc,W,H,libName,libAddr,libTel,type){doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Merci de votre confiance — conserver ce document comme preuve de votre '+(type==='reserve'?'réservation.':'commande.'),W/2,H-6,{align:'center'});}
 function pdfNewPage(doc,W,H,M,libName,libAddr,libTel,type,colRef,colLib,colQte,colPU,colRem,colNetHT,colTVA,colTTC,pageArr){pdfDrawFooter(doc,W,H,libName,libAddr,libTel,type);doc.addPage();pageArr[0]++;doc.setFillColor(27,43,75);doc.rect(M,8,W-2*M,9,'F');doc.setFillColor(232,96,28);doc.rect(M,8,3,9,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Référence',colRef+4,13.8);doc.text('Libellé',colLib,13.8);doc.text('QTE',colQte,13.8,{align:'center'});doc.text('Prix Unit (HT)',colPU,13.8,{align:'right'});doc.text('Remise',colRem,13.8,{align:'right'});doc.text('PU NetHT',colNetHT,13.8,{align:'right'});doc.text('TVA',colTVA,13.8,{align:'center'});doc.text('Total (TTC)',colTTC,13.8,{align:'right'});return 17;}
 function renderReceipts(){const all=[...orders,...reservations].slice().reverse();const w=document.getElementById('recWrap');if(!all.length){w.innerHTML=`<div style="padding:2rem;text-align:center;color:var(--tx3);font-size:.86rem">Aucun reçu pour le moment.</div>`;return;}w.innerHTML=all.map(r=>`<div class="rec-row"><div class="rec-info"><div class="rec-name">#${String(r.id).padStart(4,'0')} — ${r.name} <span class="badge ${r.type==='order'?'bvis':'bres'}" style="margin-left:4px">${r.type==='order'?'Commande':'Réservation'}</span></div><div class="rec-meta">${r.phone} · ${r.school} · ${r.level} · ${r.totalQty} livre(s) · <span class="badge ${r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':'bcash'}">${r.payment}</span> · ${r.date}</div></div><div class="rec-price">${r.total.toFixed(3)} DT</div><button class="rec-dl" onclick="dlPDFById(${r.id})">📄 Télécharger</button></div>`).join('');}
-function saveLogos(){try{if(logoUrl)localStorage.setItem('librairie_logo',logoUrl);else localStorage.removeItem('librairie_logo');}catch(e){}try{if(logoNavUrl)localStorage.setItem('librairie_navlogo',logoNavUrl);else localStorage.removeItem('librairie_navlogo');}catch(e){}if(fbDb){fbDb.ref('librairie/logos').set({main:logoUrl||'',nav:logoNavUrl||''}).catch(()=>{});}}
+function saveLogos(cb){
+  try{if(logoUrl)localStorage.setItem('librairie_logo',logoUrl);else localStorage.removeItem('librairie_logo');}catch(e){}
+  try{if(logoNavUrl)localStorage.setItem('librairie_navlogo',logoNavUrl);else localStorage.removeItem('librairie_navlogo');}catch(e){}
+  if(!fbDb){if(cb)cb(false,'Firebase non connecté — le logo restera uniquement sur cet appareil.');return;}
+  fbDb.ref('librairie/logos').set({main:logoUrl||'',nav:logoNavUrl||''})
+    .then(()=>{if(cb)cb(true);})
+    .catch(e=>{console.error('❌ Erreur sync logo:',e);if(cb)cb(false,e.message);});
+}
 function loadLogos(){try{const l=localStorage.getItem('librairie_logo');if(l&&!logoUrl)logoUrl=l;}catch(e){}try{const l=localStorage.getItem('librairie_navlogo');if(l&&!logoNavUrl)logoNavUrl=l;}catch(e){}}
-function uploadLogo(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{logoUrl=e.target.result;saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('✅ Logo page d\'accueil téléchargé');};rd.readAsDataURL(f);}
-function clearLogo(){logoUrl='';saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('🗑️ Logo page d\'accueil effacé');}
-function uploadNavLogo(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{logoNavUrl=e.target.result;saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('✅ Logo navigation téléchargé');};rd.readAsDataURL(f);}
-function clearNavLogo(){logoNavUrl='';saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('🗑️ Logo navigation effacé');}
+const LOGO_MAX_BYTES=2*1024*1024;
+function uploadLogo(input){
+  const f=input.files[0];if(!f)return;
+  if(f.size>LOGO_MAX_BYTES){showToast('⚠️ Image trop lourde (max 2 Mo) — elle risque de ne pas se synchroniser entre appareils');input.value='';return;}
+  const rd=new FileReader();
+  rd.onload=e=>{
+    logoUrl=e.target.result;syncLogos();if(autoSave)saveDataToStorage();
+    showToast('⏳ Logo en cours de synchronisation...');
+    saveLogos((ok,err)=>{showToast(ok?'✅ Logo page d\'accueil synchronisé sur tous les appareils':'❌ Échec de synchronisation : '+(err||'erreur inconnue')+' — réessayez');});
+  };
+  rd.readAsDataURL(f);
+}
+function clearLogo(){logoUrl='';syncLogos();if(autoSave)saveDataToStorage();saveLogos(ok=>showToast(ok?'🗑️ Logo page d\'accueil effacé':'❌ Échec de synchronisation de la suppression'));}
+function uploadNavLogo(input){
+  const f=input.files[0];if(!f)return;
+  if(f.size>LOGO_MAX_BYTES){showToast('⚠️ Image trop lourde (max 2 Mo) — elle risque de ne pas se synchroniser entre appareils');input.value='';return;}
+  const rd=new FileReader();
+  rd.onload=e=>{
+    logoNavUrl=e.target.result;syncLogos();if(autoSave)saveDataToStorage();
+    showToast('⏳ Logo en cours de synchronisation...');
+    saveLogos((ok,err)=>{showToast(ok?'✅ Logo navigation synchronisé sur tous les appareils':'❌ Échec de synchronisation : '+(err||'erreur inconnue')+' — réessayez');});
+  };
+  rd.readAsDataURL(f);
+}
+function clearNavLogo(){logoNavUrl='';syncLogos();if(autoSave)saveDataToStorage();saveLogos(ok=>showToast(ok?'🗑️ Logo navigation effacé':'❌ Échec de synchronisation de la suppression'));}
 function syncLogos(){
 const heroL=logoUrl;const navL=logoNavUrl||logoUrl;
 [['hLogoImg','hLogoFb',heroL],['lpImg','lpFb',heroL],['lpNavImg','lpNavFb',navL],['nLi2','nLf2',navL],['nLi3','nLf3',navL],['nLi4','nLf4',navL],['nLi5','nLf5',navL],['aLi','aLf',navL],['alLi','alLf',navL]].forEach(([ii,fi,url])=>{const img=document.getElementById(ii);const fb=document.getElementById(fi);if(!img)return;if(url){img.src=url;img.style.display='block';if(fb)fb.style.display='none';}else{img.src='';img.style.display='none';if(fb)fb.style.display='block';}});
