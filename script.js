@@ -202,20 +202,48 @@ function handleExcelFile(input){
 function showExcelMapper(){
   const opts=_xlHeaders.map((h,i)=>`<option value="${i}">${h||'Colonne '+(i+1)}</option>`).join('');
   const optsOpt='<option value="-1">— Aucune —</option>'+opts;
-  const auto=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().replace(/[éèê]/g,'e').includes(t)));return i>=0?i:0;};
-  const autoOpt=(...terms)=>{const i=_xlHeaders.findIndex(h=>terms.some(t=>h.toLowerCase().replace(/[éèê]/g,'e').includes(t)));return i>=0?i:-1;};
-  const iT=auto('titre','title','designation','designation','nom','livre');
-  const iE=auto('ean','isbn','ref','code','barr');
-  const iSub=autoOpt('matiere','subject','discipline','matieres');
-  const iP=autoOpt('prix','price','tarif','montant');
-  const iS=auto('ecole','school','etabl','institution');
-  const iL=auto('niveau','classe','level','class','niveaux');
+  const norm=s=>s.toLowerCase().replace(/[éèêë]/g,'e').replace(/[àâä]/g,'a').replace(/[îï]/g,'i').replace(/[ôö]/g,'o').replace(/[ùûü]/g,'u').trim();
+  // Score-based detection: tries each header against each term, returns best match index
+  const findCol=(...terms)=>{
+    let best=-1,bestScore=0;
+    _xlHeaders.forEach((h,i)=>{
+      const hn=norm(h);
+      let score=0;
+      terms.forEach((t,ti)=>{
+        if(hn===t)score+=100-ti*10; // exact match → high score
+        else if(hn.startsWith(t))score+=60-ti*5;
+        else if(hn.includes(t))score+=30-ti*3;
+      });
+      if(score>bestScore){bestScore=score;best=i;}
+    });
+    return best;
+  };
+  const iT=findCol('designation','titre','title','nom livre','libelle','lib','description');
+  const iE=findCol('ean','isbn','code barre','barcode','ref article','reference','ref');
+  const iSub=findCol('matiere','matieres','discipline','subject','famille','categorie');
+  const iP=findCol('prix','price','tarif','montant','pvt','pvttc');
+  const iS=findCol('ecole','etablissement','school','institution');
+  const iL=findCol('classe','niveau','niveaux','level','class','annee');
   ['xlColTitle','xlColEan','xlColSchool','xlColLevel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
   ['xlColSubject','xlColPrix'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=optsOpt;});
-  const s=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  const s=(id,v)=>{const el=document.getElementById(id);if(el&&v>=0)el.value=v;};
   s('xlColTitle',iT);s('xlColEan',iE);s('xlColSubject',iSub);s('xlColPrix',iP);s('xlColSchool',iS);s('xlColLevel',iL);
   const w=document.getElementById('xlMapWrap');if(w)w.style.display='block';
   xlUpdatePreview();
+  xlCheckConflicts();
+}
+function xlCheckConflicts(){
+  const g=id=>{const el=document.getElementById(id);return el&&el.value!==''?+el.value:-99;};
+  const map={xlColTitle:'Titre',xlColEan:'EAN/Ref',xlColSubject:'Matière',xlColPrix:'Prix',xlColSchool:'École',xlColLevel:'Niveau'};
+  const used={};let conflict=false;
+  Object.entries(map).forEach(([id,label])=>{
+    const v=g(id);if(v<0)return;
+    if(used[v]){conflict=true;}else used[v]=label;
+  });
+  let warn=document.getElementById('xlConflictWarn');
+  if(!warn){warn=document.createElement('div');warn.id='xlConflictWarn';warn.style.cssText='margin-bottom:10px;padding:8px 12px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;font-size:.8rem;color:#92400E;font-weight:600';const w=document.getElementById('xlMapWrap');if(w)w.insertBefore(warn,w.querySelector('.twrap'));}
+  warn.style.display=conflict?'block':'none';
+  warn.textContent=conflict?'⚠️ Two columns point to the same index — please check the dropdowns above before importing.':'';
 }
 function xlUpdatePreview(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};

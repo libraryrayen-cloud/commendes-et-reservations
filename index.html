@@ -526,10 +526,10 @@
             <!-- Colonnes détectées -->
             <div style="font-weight:700;font-size:.83rem;color:var(--navy);margin-bottom:8px;border-left:3px solid var(--orange);padding-left:8px">Colonnes détectées — vérifiez et corrigez si nécessaire</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;margin-bottom:14px">
-              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">TITRE / DÉSIGNATION</div><select id="xlColTitle" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview()"></select></div>
-              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">EAN / REF</div><select id="xlColEan" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview()"></select></div>
-              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">MATIÈRE <span style="font-weight:400">(opt.)</span></div><select id="xlColSubject" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview()"><option value="-1">— Aucune —</option></select></div>
-              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">PRIX <span style="font-weight:400">(opt.)</span></div><select id="xlColPrix" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview()"><option value="-1">— Aucune —</option></select></div>
+              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">TITRE / DÉSIGNATION</div><select id="xlColTitle" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"></select></div>
+              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">EAN / REF</div><select id="xlColEan" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"></select></div>
+              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">MATIÈRE <span style="font-weight:400">(opt.)</span></div><select id="xlColSubject" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"><option value="-1">— Aucune —</option></select></div>
+              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">PRIX <span style="font-weight:400">(opt.)</span></div><select id="xlColPrix" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"><option value="-1">— Aucune —</option></select></div>
             </div>
             <!-- École et Niveau détectés automatiquement (hidden) -->
             <select id="xlColSchool" style="display:none"></select>
@@ -620,6 +620,6 @@
   </div>
 </div>
 
-<script src="script.js?v=24"></script>
+<script src="script.js?v=26"></script>
 </body>
 </html>
