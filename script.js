@@ -413,7 +413,14 @@ function doExcelImport(){
     // Skip if book already exists (by EAN or title)
     const exists=booksDB[key].some(b=>(ean&&b.ean===ean)||(b.title===title));
     if(exists){skipped++;return;}
-    booksDB[key].push({id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,ean,subject,priceHT:prix,color:''});
+    // If this EAN already exists in another school/level list, inherit its price/subject/photo — then propagate the merged result to ALL matching entries (same EAN = same book everywhere)
+    const eanMatch=ean?findBookByEan(ean):null;
+    const newId='b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+    const finalPrice=prix>0?prix:(eanMatch?eanMatch.priceHT:prix);
+    const finalSubject=subject||(eanMatch?eanMatch.subject:subject);
+    const newBook={id:newId,title,ean,subject:finalSubject,priceHT:finalPrice,color:eanMatch?eanMatch.color:'',img:eanMatch?eanMatch.img:''};
+    booksDB[key].push(newBook);
+    if(ean)propagateBookByEan(newBook);
     added++;
   });
   saveDataToStorage();
@@ -537,27 +544,39 @@ function saveLogos(cb){
     .catch(e=>{console.error('❌ Erreur sync logo:',e);if(cb)cb(false,e.message);});
 }
 function loadLogos(){try{const l=localStorage.getItem('librairie_logo');if(l&&!logoUrl)logoUrl=l;}catch(e){}try{const l=localStorage.getItem('librairie_navlogo');if(l&&!logoNavUrl)logoNavUrl=l;}catch(e){}}
-const LOGO_MAX_BYTES=2*1024*1024;
+const LOGO_MAX_BYTES=5*1024*1024;
+function syncLogoField(kind,dataUrl,file,label){
+  const fallback=()=>{saveLogos((ok,err)=>{showToast(ok?'✅ '+label+' synchronisé sur tous les appareils':'❌ Échec de synchronisation : '+(err||'erreur inconnue')+' — réessayez');});};
+  if(fbStorage&&fbDb){
+    fbStorage.ref('logos/'+kind+'.jpg').put(file)
+      .then(snap=>snap.ref.getDownloadURL())
+      .then(url=>fbDb.ref('librairie/logos/'+kind).set(url))
+      .then(()=>{showToast('✅ '+label+' synchronisé (Firebase Storage) sur tous les appareils');})
+      .catch(()=>{fallback();});
+  }else{
+    fallback();
+  }
+}
 function uploadLogo(input){
   const f=input.files[0];if(!f)return;
-  if(f.size>LOGO_MAX_BYTES){showToast('⚠️ Image trop lourde (max 2 Mo) — elle risque de ne pas se synchroniser entre appareils');input.value='';return;}
+  if(f.size>LOGO_MAX_BYTES){showToast('⚠️ Image trop lourde (max 5 Mo) — elle risque de ne pas se synchroniser entre appareils');input.value='';return;}
   const rd=new FileReader();
   rd.onload=e=>{
     logoUrl=e.target.result;syncLogos();if(autoSave)saveDataToStorage();
     showToast('⏳ Logo en cours de synchronisation...');
-    saveLogos((ok,err)=>{showToast(ok?'✅ Logo page d\'accueil synchronisé sur tous les appareils':'❌ Échec de synchronisation : '+(err||'erreur inconnue')+' — réessayez');});
+    syncLogoField('main',logoUrl,f,'Logo page d\'accueil');
   };
   rd.readAsDataURL(f);
 }
 function clearLogo(){logoUrl='';syncLogos();if(autoSave)saveDataToStorage();saveLogos(ok=>showToast(ok?'🗑️ Logo page d\'accueil effacé':'❌ Échec de synchronisation de la suppression'));}
 function uploadNavLogo(input){
   const f=input.files[0];if(!f)return;
-  if(f.size>LOGO_MAX_BYTES){showToast('⚠️ Image trop lourde (max 2 Mo) — elle risque de ne pas se synchroniser entre appareils');input.value='';return;}
+  if(f.size>LOGO_MAX_BYTES){showToast('⚠️ Image trop lourde (max 5 Mo) — elle risque de ne pas se synchroniser entre appareils');input.value='';return;}
   const rd=new FileReader();
   rd.onload=e=>{
     logoNavUrl=e.target.result;syncLogos();if(autoSave)saveDataToStorage();
     showToast('⏳ Logo en cours de synchronisation...');
-    saveLogos((ok,err)=>{showToast(ok?'✅ Logo navigation synchronisé sur tous les appareils':'❌ Échec de synchronisation : '+(err||'erreur inconnue')+' — réessayez');});
+    syncLogoField('nav',logoNavUrl,f,'Logo navigation');
   };
   rd.readAsDataURL(f);
 }
@@ -577,7 +596,41 @@ function addLevel(){const school=document.getElementById('schoolForLv').value;co
 function removeLv(school,i){if(schoolLevels[school])schoolLevels[school].splice(i,1);if(autoSave)saveDataToStorage();renderLvTags();}
 function buildAdmSchOpts(){const sel=document.getElementById('edSch');const cur=sel.value;sel.innerHTML='<option value="">— École —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});sel.value=cur;}
 function updEdLv(){const school=document.getElementById('edSch').value;const ls=document.getElementById('edLv');ls.innerHTML='<option value="">— Niveau —</option>';if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{const o=document.createElement('option');o.value=lv;o.textContent=lv;ls.appendChild(o);});document.getElementById('bookEdArea').style.display='none';}
-function renderBookEd(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const area=document.getElementById('bookEdArea');if(!school||!lv){area.style.display='none';return;}area.style.display='block';const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];document.getElementById('bookRows').innerHTML=booksDB[key].map((b,i)=>`<div class="bed-row" id="bedr-${i}"><input class="bed-inp" value="${b.title}" id="bt-${i}" placeholder="Titre"><input class="bed-inp" value="${b.ean||''}" id="be-${i}" placeholder="EAN-13" maxlength="13"><input class="bed-inp" value="${b.subject}" id="bs-${i}" placeholder="Matière"><input class="bed-inp" type="number" step="0.5" value="${b.priceHT.toFixed(3)}" id="bp-${i}"><div id="bth-${i}" style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:${b.color};display:flex;align-items:center;justify-content:center;font-size:.85rem;cursor:pointer;flex-shrink:0" onclick="document.getElementById('bfi-${i}').click()" title="Photo de couverture">${b.img?`<img src="${b.img}" style="width:100%;height:100%;object-fit:cover">`:'📖'}</div><input type="file" id="bfi-${i}" accept="image/*" style="display:none" onchange="uplBkImg(this,${i})"><button class="del-btn" onclick="delBkRow(${i})">✕</button></div>`).join('');booksDB[key].forEach((b,i)=>lazyLoadEditorThumb(b,i));}
+function findBookByEan(ean,excludeKey,excludeIndex){
+  if(!ean)return null;
+  for(const key in booksDB){
+    const idx=booksDB[key].findIndex(b=>b.ean&&b.ean===ean);
+    if(idx<0)continue;
+    if(key===excludeKey&&idx===excludeIndex)continue;
+    return booksDB[key][idx];
+  }
+  return null;
+}
+function onEanInput(inp,i){
+  const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;
+  const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;
+  const ean=inp.value.trim();
+  booksDB[key][i].ean=ean;
+  if(!ean)return;
+  const match=findBookByEan(ean,key,i);
+  if(!match)return;
+  const b=booksDB[key][i];
+  const pi=document.getElementById('bp-'+i);if(pi)pi.value=match.priceHT.toFixed(3);
+  b.priceHT=match.priceHT;
+  const si=document.getElementById('bs-'+i);if(si)si.value=match.subject;
+  b.subject=match.subject;
+  const ti=document.getElementById('bt-'+i);if(ti&&(!ti.value||ti.value==='Nouveau livre'))ti.value=match.title;
+  if(!b.title||b.title==='Nouveau livre')b.title=match.title;
+  b.color=match.color||b.color;
+  if(match.img){
+    b.img=match.img;
+    const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${match.img}" style="width:100%;height:100%;object-fit:cover">`;
+    idbSave(b.id,match.img);_imgCache[b.id]=match.img;
+    if(fbDb)fbDb.ref('librairie/bookImages/'+b.id).set(match.img).catch(()=>{});
+  }
+  showToast('✅ Livre reconnu par EAN — prix, photo et matière copiés automatiquement');
+}
+function renderBookEd(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const area=document.getElementById('bookEdArea');if(!school||!lv){area.style.display='none';return;}area.style.display='block';const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];document.getElementById('bookRows').innerHTML=booksDB[key].map((b,i)=>`<div class="bed-row" id="bedr-${i}"><input class="bed-inp" value="${b.title}" id="bt-${i}" placeholder="Titre"><input class="bed-inp" value="${b.ean||''}" id="be-${i}" placeholder="EAN-13" maxlength="13" onchange="onEanInput(this,${i})"><input class="bed-inp" value="${b.subject}" id="bs-${i}" placeholder="Matière"><input class="bed-inp" type="number" step="0.5" value="${b.priceHT.toFixed(3)}" id="bp-${i}"><div id="bth-${i}" style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:${b.color};display:flex;align-items:center;justify-content:center;font-size:.85rem;cursor:pointer;flex-shrink:0" onclick="document.getElementById('bfi-${i}').click()" title="Photo de couverture">${b.img?`<img src="${b.img}" style="width:100%;height:100%;object-fit:cover">`:'📖'}</div><input type="file" id="bfi-${i}" accept="image/*" style="display:none" onchange="uplBkImg(this,${i})"><button class="del-btn" onclick="delBkRow(${i})">✕</button></div>`).join('');booksDB[key].forEach((b,i)=>lazyLoadEditorThumb(b,i));}
 function lazyLoadEditorThumb(b,i){
   if(b.img)return;
   if(_imgCache[b.id]){b.img=_imgCache[b.id];const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${b.img}" style="width:100%;height:100%;object-fit:cover">`;return;}
@@ -589,10 +642,44 @@ function lazyLoadEditorThumb(b,i){
   }).catch(()=>{});
 }
 function compressImg(dataUrl,maxW,maxH,quality,cb){const img=new Image();img.onload=()=>{let sx=0,sy=0,sw=img.width,sh=img.height;if(autoAdjustImg){const targetRatio=maxW/maxH;const imgRatio=img.width/img.height;if(imgRatio>targetRatio){sw=Math.round(img.height*targetRatio);sx=Math.round((img.width-sw)/2);}else{sh=Math.round(img.width/targetRatio);sy=Math.round((img.height-sh)/2);}const c=document.createElement('canvas');c.width=maxW;c.height=maxH;c.getContext('2d').drawImage(img,sx,sy,sw,sh,0,0,maxW,maxH);cb(c.toDataURL('image/jpeg',quality));}else{const scale=Math.min(1,maxW/img.width,maxH/img.height);const w=Math.round(img.width*scale);const h=Math.round(img.height*scale);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',quality));}};img.src=dataUrl;}
-function uplBkImg(input,i){const f=input.files[0];if(!f)return;const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;const bookId=booksDB[key][i].id;showToast('⏳ Upload en cours...');const rd=new FileReader();rd.onload=e=>{compressImg(e.target.result,300,400,0.70,compressed=>{booksDB[key][i].img=compressed;_imgCache[bookId]=compressed;const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${compressed}" style="width:100%;height:100%;object-fit:cover">`;idbSave(bookId,compressed);if(fbDb){fbDb.ref('librairie/bookImages/'+bookId).set(compressed).then(()=>{showToast('✅ Photo synchronisée sur tous les PCs');}).catch(()=>{showToast('✅ Photo sauvegardée dans IndexedDB');});}else{showToast('✅ Couverture mise à jour');}if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}});};rd.readAsDataURL(f);}
+function propagateBookByEan(sourceBook){
+  if(!sourceBook.ean)return;
+  let touchedCurrentList=false;
+  for(const k in booksDB){
+    booksDB[k].forEach(b=>{
+      if(b.id===sourceBook.id||b.ean!==sourceBook.ean)return;
+      b.title=sourceBook.title;b.subject=sourceBook.subject;b.priceHT=sourceBook.priceHT;b.color=sourceBook.color||b.color;
+      if(sourceBook.img){
+        b.img=sourceBook.img;
+        idbSave(b.id,sourceBook.img);_imgCache[b.id]=sourceBook.img;
+        if(fbDb)fbDb.ref('librairie/bookImages/'+b.id).set(sourceBook.img).catch(()=>{});
+      }
+      if(filtSchool&&filtLv&&k===gk(filtSchool,filtLv))touchedCurrentList=true;
+    });
+  }
+  if(touchedCurrentList){_books=booksDB[gk(filtSchool,filtLv)]||[];renderGrid(_books);updateCart();}
+}
+function uplBkImg(input,i){const f=input.files[0];if(!f)return;const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;const bookId=booksDB[key][i].id;showToast('⏳ Upload en cours...');const rd=new FileReader();rd.onload=e=>{compressImg(e.target.result,300,400,0.70,compressed=>{
+  booksDB[key][i].img=compressed;_imgCache[bookId]=compressed;
+  const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${compressed}" style="width:100%;height:100%;object-fit:cover">`;
+  idbSave(bookId,compressed);
+  propagateBookByEan(booksDB[key][i]);
+  if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}
+  const fallbackToRTDB=()=>{if(!fbDb){showToast('✅ Couverture mise à jour');return;}fbDb.ref('librairie/bookImages/'+bookId).set(compressed).then(()=>showToast('✅ Photo synchronisée sur toutes les listes et tous les PCs')).catch(()=>showToast('✅ Photo sauvegardée dans IndexedDB'));};
+  if(fbStorage&&fbDb){
+    fetch(compressed).then(r=>r.blob())
+      .then(blob=>fbStorage.ref('bookImages/'+bookId+'.jpg').put(blob))
+      .then(snap=>snap.ref.getDownloadURL())
+      .then(url=>fbDb.ref('librairie/bookImages/'+bookId).set(url))
+      .then(()=>{showToast('✅ Photo synchronisée (Firebase Storage) sur toutes les listes et tous les PCs');})
+      .catch(()=>{fallbackToRTDB();});
+  }else{
+    fallbackToRTDB();
+  }
+});};rd.readAsDataURL(f);}
 function addBookRow(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;if(!school||!lv)return;const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];const ean='978997'+(Math.floor(Math.random()*9000000)+1000000);booksDB[key].push({id:Date.now(),title:'Nouveau livre',ean:ean,subject:'Matière',priceHT:8.000,color:CLRS[Math.floor(Math.random()*CLRS.length)],img:''});renderBookEd();}
 function delBkRow(i){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(booksDB[key])booksDB[key].splice(i,1);renderBookEd();}
-function saveBooks(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!key||!booksDB[key])return;booksDB[key].forEach((b,i)=>{const ti=document.getElementById('bt-'+i),ei=document.getElementById('be-'+i),si=document.getElementById('bs-'+i),pi=document.getElementById('bp-'+i);if(ti)b.title=ti.value;if(ei)b.ean=ei.value;if(si)b.subject=si.value;if(pi)b.priceHT=parseFloat(pi.value)||0;});if(autoSave)saveDataToStorage();if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);updateCart();}showToast('✅ Livres sauvegardés — '+school+' · '+lv);}
+function saveBooks(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!key||!booksDB[key])return;booksDB[key].forEach((b,i)=>{const ti=document.getElementById('bt-'+i),ei=document.getElementById('be-'+i),si=document.getElementById('bs-'+i),pi=document.getElementById('bp-'+i);if(ti)b.title=ti.value;if(ei)b.ean=ei.value;if(si)b.subject=si.value;if(pi)b.priceHT=parseFloat(pi.value)||0;if(b.ean)propagateBookByEan(b);});if(autoSave)saveDataToStorage();if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);updateCart();}showToast('✅ Livres sauvegardés et synchronisés (même EAN) — '+school+' · '+lv);}
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('vis');setTimeout(()=>el.classList.remove('vis'),2600);}
 function saveImgsLocally(){Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(b.img)_imgCache[b.id]=b.img;});});Object.keys(_imgCache).forEach(id=>{idbSave(id,_imgCache[id]);try{localStorage.removeItem('librairie_img_'+id);}catch(e){}});try{localStorage.removeItem('librairie_rayen_imgs');}catch(e){}}
 function loadImgsIntoBooks(){try{localStorage.removeItem('librairie_rayen_imgs');}catch(e){}Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(_imgCache[b.id])b.img=_imgCache[b.id];});});}
