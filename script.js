@@ -243,6 +243,8 @@ function showExcelMapper(){
   const sampleVals=(colIdx,n=10)=>{const vals=[];for(let i=0;i<_xlRows.length&&vals.length<n;i++){const v=String(_xlRows[i][colIdx]??'').trim();if(v)vals.push(v);}return vals;};
   const looksLikeCode=v=>/^[\d\s\-]{5,}$/.test(v);
   const isMostlyCodeCol=colIdx=>{if(colIdx<0)return false;const vals=sampleVals(colIdx);if(!vals.length)return false;return vals.filter(looksLikeCode).length/vals.length>=0.6;};
+  const looksLikeNumber=v=>/^-?\d+([.,]\d+)?$/.test(v.trim());
+  const isMostlyNumberCol=colIdx=>{if(colIdx<0)return false;const vals=sampleVals(colIdx);if(!vals.length)return false;return vals.filter(looksLikeNumber).length/vals.length>=0.6;};
   const iE=findCol('ean','isbn','code barre','barcode','ref article','reference','ref');
   let iT=findCol('designation','titre','title','nom livre','libelle','lib','description');
   // Guard: the Title column must hold text, must differ from the EAN column, and must not itself look like a code column
@@ -250,8 +252,17 @@ function showExcelMapper(){
     const altT=_xlHeaders.map((_,i)=>i).find(i=>i!==iE&&!isMostlyCodeCol(i)&&_xlRows.some(r=>String(r[i]||'').trim()!==''));
     if(altT!==undefined)iT=altT;
   }
-  const iSub=findCol('matiere','matieres','discipline','subject','famille','categorie');
-  const iP=findCol('prix','price','tarif','montant','pvt','pvttc');
+  // Guard: the Price column must actually contain decimal numbers — if not, it was likely mismatched with Matière
+  let iP=findCol('prix','price','tarif','montant','pvt','pvttc');
+  if(iP>=0&&!isMostlyNumberCol(iP)){
+    const altP=_xlHeaders.map((_,i)=>i).find(i=>i!==iT&&i!==iE&&isMostlyNumberCol(i));
+    iP=altP!==undefined?altP:-1;
+  }
+  let iSub=findCol('matiere','matieres','discipline','subject','famille','categorie');
+  if(iSub>=0&&isMostlyNumberCol(iSub)){
+    const altSub=_xlHeaders.map((_,i)=>i).find(i=>i!==iT&&i!==iE&&i!==iP&&!isMostlyNumberCol(i)&&!isMostlyCodeCol(i)&&_xlRows.some(r=>String(r[i]||'').trim()!==''));
+    iSub=altSub!==undefined?altSub:-1;
+  }
   const iS=findCol('ecole','etablissement','school','institution');
   const iL=findCol('classe','niveau','niveaux','level','class','annee');
   ['xlColTitle','xlColEan','xlColSchool','xlColLevel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
@@ -271,12 +282,22 @@ function xlCheckConflicts(){
     if(used[v]){conflict=true;}else used[v]=label;
   });
   const titleEanClash=g('xlColTitle')===g('xlColEan');
+  const priceIdx=g('xlColPrix');
+  const looksLikeNumber=v=>/^-?\d+([.,]\d+)?$/.test(v.trim());
+  const priceLooksWrong=priceIdx>=0&&(()=>{
+    const vals=[];for(let i=0;i<_xlRows.length&&vals.length<10;i++){const v=String(_xlRows[i][priceIdx]??'').trim();if(v)vals.push(v);}
+    if(!vals.length)return false;
+    return vals.filter(looksLikeNumber).length/vals.length<0.6;
+  })();
+  const blocking=titleEanClash||priceLooksWrong;
   let warn=document.getElementById('xlConflictWarn');
   if(!warn){warn=document.createElement('div');warn.id='xlConflictWarn';warn.style.cssText='margin-bottom:10px;padding:8px 12px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;font-size:.8rem;color:#92400E;font-weight:600';const w=document.getElementById('xlMapWrap');if(w)w.insertBefore(warn,w.querySelector('.twrap'));}
-  warn.style.display=conflict?'block':'none';
-  warn.textContent=titleEanClash?'🚫 Les colonnes Titre et EAN/Ref pointent vers la même colonne — corrigez avant d\'importer, sinon le titre affichera le code EAN.':(conflict?'⚠️ Deux colonnes pointent vers le même index — vérifiez les listes ci-dessus avant d\'importer.':'');
+  warn.style.display=(conflict||blocking)?'block':'none';
+  warn.textContent=titleEanClash?'🚫 Les colonnes Titre et EAN/Ref pointent vers la même colonne — corrigez avant d\'importer, sinon le titre affichera le code EAN.'
+    :priceLooksWrong?'🚫 La colonne Prix sélectionnée ne contient pas de nombres — corrigez-la avant d\'importer, sinon les livres seront importés à 0.000 TND.'
+    :(conflict?'⚠️ Deux colonnes pointent vers le même index — vérifiez les listes ci-dessus avant d\'importer.':'');
   const btn=document.getElementById('xlImportBtn');
-  if(btn){btn.disabled=titleEanClash;btn.style.opacity=titleEanClash?'.5':'1';btn.style.cursor=titleEanClash?'not-allowed':'pointer';}
+  if(btn){btn.disabled=blocking;btn.style.opacity=blocking?'.5':'1';btn.style.cursor=blocking?'not-allowed':'pointer';}
 }
 function xlUpdatePreview(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
@@ -381,6 +402,11 @@ function doExcelImport(){
   const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix'),iS=g('xlColSchool'),iL=g('xlColLevel');
   if(!_xlRows.length){alert('Aucune donnée à importer. Veuillez d\'abord charger un fichier Excel.');return;}
   if(iT===iE){alert('🚫 Les colonnes Titre et EAN/Ref pointent vers la même colonne. Corrigez le mappage avant d\'importer.');return;}
+  if(iP>=0){
+    const looksLikeNumber=v=>/^-?\d+([.,]\d+)?$/.test(v.trim());
+    const vals=[];for(let i=0;i<_xlRows.length&&vals.length<10;i++){const v=String(_xlRows[i][iP]??'').trim();if(v)vals.push(v);}
+    if(vals.length&&vals.filter(looksLikeNumber).length/vals.length<0.6){alert('🚫 La colonne Prix sélectionnée ne contient pas de nombres. Corrigez le mappage avant d\'importer, sinon les livres seront importés à 0.000 TND.');return;}
+  }
   let added=0,skipped=0,schoolsCreated=0,levelsCreated=0;
   _xlRows.forEach(r=>{
     const title=String(r[iT]||'').trim();
@@ -588,9 +614,32 @@ const heroL=logoUrl;const navL=logoNavUrl||logoUrl;
 function saveIdentity(){libName=document.getElementById('s-name').value||'Librairie Rayen';libTag=document.getElementById('s-tag').value;libTel=document.getElementById('s-tel').value;libMF=document.getElementById('s-mf').value;libAddr=document.getElementById('s-addr').value;[['hName',libName],['nN2',libName],['nN3',libName],['nN4',libName],['nN5',libName],['aN',libName],['alN',libName]].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=v;});document.getElementById('hTag').textContent=libTag;document.title=libName;if(autoSave)saveDataToStorage();showToast('✅ Identité sauvegardée');}
 function saveTexts(){heroSubTxt=document.getElementById('s-hsub').value;deliveryFee=parseFloat(document.getElementById('s-del').value)||3;deliveryNote=document.getElementById('s-dnote').value;document.getElementById('heroSub').textContent=heroSubTxt;if(autoSave)saveDataToStorage();showToast('✅ Sauvegardé');}
 function saveCreds(){const u=document.getElementById('s-usr').value.trim();const p=document.getElementById('s-pw').value;const p2=document.getElementById('s-pw2').value;if(!u){showToast('⚠️ Identifiant requis');return;}if(p&&p!==p2){showToast('⚠️ Mots de passe différents');return;}adminUser=u;if(p)adminPass=p;if(autoSave)saveDataToStorage();document.getElementById('s-pw').value='';document.getElementById('s-pw2').value='';showToast('✅ Identifiants mis à jour');}
-function renderSchoolTags(){document.getElementById('schoolTags').innerHTML=Object.keys(schoolLevels).map((s,i)=>`<span class="tag">${s} <span class="xt" onclick="removeSchool(${i})">✕</span></span>`).join('');buildSchoolOpts();buildAdmSchOpts();const sfl=document.getElementById('schoolForLv');const cur=sfl.value;sfl.innerHTML='<option value="">— Sélectionner école —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sfl.appendChild(o);});sfl.value=cur;}
+function renderSchoolTags(){document.getElementById('schoolTags').innerHTML=Object.keys(schoolLevels).map((s,i)=>`<span class="tag">${s} <span class="xt" onclick="renameSchool(${i})" title="Renommer" style="margin-right:4px">✏️</span><span class="xt" onclick="removeSchool(${i})">✕</span></span>`).join('');buildSchoolOpts();buildAdmSchOpts();const sfl=document.getElementById('schoolForLv');const cur=sfl.value;sfl.innerHTML='<option value="">— Sélectionner école —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sfl.appendChild(o);});sfl.value=cur;}
 function addSchool(){const v=document.getElementById('newSchool').value.trim();if(!v||v in schoolLevels)return;schoolLevels[v]=[];if(autoSave)saveDataToStorage();renderSchoolTags();document.getElementById('newSchool').value='';showToast('✅ École ajoutée');}
 function removeSchool(i){const k=Object.keys(schoolLevels);delete schoolLevels[k[i]];if(autoSave)saveDataToStorage();renderSchoolTags();renderLvTags();}
+function renameSchool(i){
+  const keys=Object.keys(schoolLevels);
+  const oldName=keys[i];if(!oldName)return;
+  const newName=prompt('Nouveau nom pour "'+oldName+'" :',oldName);
+  if(newName===null)return;
+  const clean=newName.trim();
+  if(!clean||clean===oldName)return;
+  if(schoolLevels[clean]){showToast('⚠️ Une école porte déjà ce nom');return;}
+  schoolLevels[clean]=schoolLevels[oldName];
+  delete schoolLevels[oldName];
+  // Move every book list tied to this school (all its levels) to the new name — nothing is lost
+  Object.keys(booksDB).forEach(key=>{
+    if(key.startsWith(oldName+'|')){
+      const level=key.slice(oldName.length+1);
+      booksDB[gk(clean,level)]=booksDB[key];
+      delete booksDB[key];
+    }
+  });
+  if(filtSchool===oldName)filtSchool=clean;
+  if(autoSave)saveDataToStorage();
+  renderSchoolTags();
+  showToast('✅ École renommée : "'+oldName+'" → "'+clean+'"');
+}
 function renderLvTags(){const school=document.getElementById('schoolForLv').value;const c=document.getElementById('levelTags');if(!school){c.innerHTML='';return;}c.innerHTML=(schoolLevels[school]||[]).map((lv,i)=>{const e=getEtablissement(lv);const col=etabColor(e);const badge=e?`<span style="font-size:.6rem;background:${col.bg};color:${col.tx};border-radius:3px;padding:0 5px;margin-left:4px;font-weight:700">${e}</span>`:'';return`<span class="tag lv">${lv}${badge} <span class="xt" onclick="removeLv('${school}',${i})">✕</span></span>`;}).join('');onSchoolChange();}
 function addLevel(){const school=document.getElementById('schoolForLv').value;const v=document.getElementById('newLv').value.trim();if(!school||!v)return;if(!schoolLevels[school])schoolLevels[school]=[];if(!schoolLevels[school].includes(v))schoolLevels[school].push(v);if(autoSave)saveDataToStorage();renderLvTags();document.getElementById('newLv').value='';showToast('✅ Niveau ajouté');}
 function removeLv(school,i){if(schoolLevels[school])schoolLevels[school].splice(i,1);if(autoSave)saveDataToStorage();renderLvTags();}
