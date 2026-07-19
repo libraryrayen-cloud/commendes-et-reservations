@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Nunito:wght@400;600&family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="book-image-utils.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
@@ -351,7 +352,7 @@
         <div id="acompteInputArea" style="display:flex;align-items:center;gap:4px;padding:0 10px 0 0">
           <input id="acompteInp" type="number" min="0" step="0.001" placeholder="30%" title="Laisser vide = 30% · Minimum 30% du total"
             style="width:72px;padding:3px 6px;border-radius:4px;border:none;font-size:.78rem;font-weight:600;outline:none;text-align:center;background:rgba(255,255,255,.9);color:#1B1B1F"
-            oninput="validateAcompteInp(this)" onchange="saveAcompteDefault(this)">
+            oninput="validateAcompteInp(this)">
           <span style="color:rgba(255,255,255,.7);font-size:.75rem">TND</span>
         </div>
       </div>
@@ -541,7 +542,7 @@
                 <tbody id="xlPrevBody"></tbody>
               </table>
             </div>
-            <button class="save-btn" id="xlImportBtn" onclick="doExcelImport()" style="background:var(--green);font-size:.9rem;padding:.55rem 1.6rem">✅ Importer automatiquement</button>
+            <button class="save-btn" onclick="doExcelImport()" style="background:var(--green);font-size:.9rem;padding:.55rem 1.6rem">✅ Importer automatiquement</button>
           </div>
         </div>
         <!-- Stockage & Backup -->
@@ -599,7 +600,7 @@
             </table>
           </div>
           <div style="margin-top:12px">
-            <button class="save-btn" style="background:var(--navy);color:white" onclick="dlFournisseurExcel()">📊 Télécharger Excel</button>
+            <button class="save-btn" style="background:var(--navy);color:white" onclick="dlFournisseurPDF()">📄 Télécharger PDF</button>
           </div>
         </div>
       </div>
@@ -620,6 +621,6 @@
   </div>
 </div>
 
-<script src="script.js?v=43"></script>
+<script src="script.js?v=27"></script>
 </body>
 </html>
