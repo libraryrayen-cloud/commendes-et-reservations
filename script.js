@@ -132,11 +132,21 @@ let filtEtab='';
 function getEtablissement(level){
   if(!level)return null;
   const l=level.toLowerCase().trim().replace(/['’‘èé]/g,c=>c==='è'||c==='é'?'e':c);
-  if(/^(cp|ce1|ce2|cm1|cm2|maternelle|ps|ms|gs|cp1|cp2)\b/.test(l))return 'Primaire';
+  // 1) Trust an explicit suffix keyword first — most reliable, and required for Tunisian labels
+  // like "1ère Primaire" or "7ème de base" where the leading digit alone is ambiguous.
+  if(/primaire/.test(l))return 'Primaire';
+  if(/(secondaire|lycee|\bbac\b)/.test(l))return 'Lycée';
+  if(/(college|de base)/.test(l)){
+    const m=l.match(/^(\d+)/);
+    if(m){const n=+m[1];if(n>=1&&n<=6)return 'Primaire';if(n>=7&&n<=9)return 'Collège';}
+    return 'Collège';
+  }
+  // 2) Fallback: French naming conventions with no explicit suffix keyword
+  if(/^(tps|cp|ce1|ce2|cm1|cm2|maternelle|ps|ms|gs|cp1|cp2)\b/.test(l))return 'Primaire';
   if(/^[3456]\s*(e|em|eme|ieme|ième|eme|ème)\b/.test(l)||/^(troisieme|quatrieme|cinquieme|sixieme)/.test(l))return 'Collège';
   if(/^2\s*(e|em|eme|nd|nde)\b/.test(l)||/^(deuxieme|seconde)\b/.test(l))return 'Lycée';
   if(/^1\s*(e|er|re|ere|ère|ere)\b/.test(l)||/^(premiere|première)\b/.test(l))return 'Lycée';
-  if(/^term/.test(l))return 'Lycée';
+  if(/^ter(m|\b)/.test(l))return 'Lycée';
   return null;
 }
 function etabColor(e){return e==='Primaire'?{bg:'#D1FAE5',tx:'#065F46'}:e==='Collège'?{bg:'#DBEAFE',tx:'#1E40AF'}:e==='Lycée'?{bg:'#EDE9FE',tx:'#5B21B6'}:{bg:'#F1F5F9',tx:'#475569'};}
@@ -304,13 +314,18 @@ function xlUpdatePreview(){
   const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
   const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix');
   const prev=_xlRows.slice(0,6);
+  const looksLikeCode=v=>{const s=String(v).trim();return s&&!/\s/.test(s)&&s.length<=20;};
+  const looksLikeTitle=v=>{const s=String(v).trim();return /\s/.test(s)||s.length>20;};
   const tb=document.getElementById('xlPrevBody');
-  if(tb)tb.innerHTML=prev.map(r=>`<tr>
-    <td>${r[iT]||'—'}</td>
-    <td style="font-size:.73rem;color:var(--tx3)">${r[iE]||'—'}</td>
+  if(tb)tb.innerHTML=prev.map(r=>{
+    let title=String(r[iT]||'').trim(),ean=String(r[iE]||'').trim();
+    if(looksLikeCode(title)&&looksLikeTitle(ean)){[title,ean]=[ean,title];title=title.replace(/^ean[\s:.\-]*/i,'').trim();}
+    return`<tr>
+    <td>${title||'—'}</td>
+    <td style="font-size:.73rem;color:var(--tx3)">${ean||'—'}</td>
     <td style="color:var(--tx2)">${iSub>=0?(r[iSub]||'—'):'—'}</td>
     <td style="color:var(--green)">${iP>=0?(r[iP]||'—'):'—'}</td>
-  </tr>`).join('');
+  </tr>`;}).join('');
   const cnt=document.getElementById('xlCount');
   if(cnt)cnt.textContent=_xlRows.length+' ligne(s) détectée(s) · aperçu des 6 premières';
 }
@@ -409,8 +424,17 @@ function doExcelImport(){
   }
   let added=0,skipped=0,schoolsCreated=0,levelsCreated=0;
   _xlRows.forEach(r=>{
-    const title=String(r[iT]||'').trim();
-    const ean=String(r[iE]||'').trim();
+    let title=String(r[iT]||'').trim();
+    let ean=String(r[iE]||'').trim();
+    // Per-row safety net: some source files have Titre/EAN swapped on individual rows (not the whole column) —
+    // a real title has spaces (several words); a code/ref/EAN is one short unbroken token. If THIS row's
+    // "title" looks like a code and its "ean" cell looks like an actual title, swap them back for this row only.
+    const looksLikeCode=v=>{const s=v.trim();return s&&!/\s/.test(s)&&s.length<=20;};
+    const looksLikeTitle=v=>{const s=v.trim();return /\s/.test(s)||s.length>20;};
+    if(looksLikeCode(title)&&looksLikeTitle(ean)){
+      [title,ean]=[ean,title];
+      title=title.replace(/^ean[\s:.\-]*/i,'').trim();
+    }
     const subject=iSub>=0?String(r[iSub]||'').trim():'';
     const prixRaw=iP>=0?parseFloat(String(r[iP]||'').replace(',','.')):0;
     const prix=isNaN(prixRaw)?0:prixRaw;
