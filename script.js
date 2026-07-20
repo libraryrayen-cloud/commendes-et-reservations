@@ -38,6 +38,11 @@ try {
     if (data.deliveryNote !== undefined) deliveryNote = data.deliveryNote;
     if (data.heroSubTxt !== undefined) { heroSubTxt = data.heroSubTxt; const hs=document.getElementById('heroSub');if(hs)hs.textContent=heroSubTxt; }
     if (typeof data.orderEnabled !== 'undefined') orderEnabled = !!data.orderEnabled;
+    if (typeof data.remiseEnabled !== 'undefined') remiseEnabled = !!data.remiseEnabled;
+    if (typeof data.acompteEnabled !== 'undefined') acompteEnabled = !!data.acompteEnabled;
+    if (typeof data.avanceException !== 'undefined') avanceException = !!data.avanceException;
+    if (typeof data.livraisonEnabled !== 'undefined') livraisonEnabled = !!data.livraisonEnabled;
+    if (data.acompteDefaultAmt !== undefined) acompteDefaultAmt = data.acompteDefaultAmt;
     if (data.logoUrl) logoUrl = data.logoUrl;
     if (data.logoNavUrl) logoNavUrl = data.logoNavUrl;
     if (data.adminUser !== undefined) adminUser = data.adminUser;
@@ -47,6 +52,10 @@ try {
     buildSchoolOpts();
     if (_books.length) renderGrid(_books);
     syncOrderToggle();
+    applyRemiseBadge();applyAcompteBadge();applyLivraisonBadge();applyExceptionBadge();
+    try{const ai=document.getElementById('acompteInp');if(ai)ai.value=acompteDefaultAmt||'';}catch(e){}
+    updateCart();
+    if(Object.keys(cart).length>0){renderOrderSumm();renderResSumm();}
     updateDeliveryNotice();
     const adm = document.getElementById('adm-page');
     if(adm && adm.classList.contains('active')){
@@ -86,23 +95,9 @@ try {
     try{if(logoNavUrl)localStorage.setItem('librairie_navlogo',logoNavUrl);}catch(e){}
     syncLogos();
   });
-  fbDb.ref('librairie/bookImages').on('value', snap => {
-    const imgs = snap.val();
-    if(!imgs) return;
-    Object.entries(imgs).forEach(([k,v])=>{
-      if (typeof v === 'string') {
-        _imgCache[k] = v;
-        idbSave(k, v);
-      }
-    });
-    Object.keys(booksDB).forEach(key=>{
-      booksDB[key].forEach(b=>{
-        const img = bookImageUtils.resolveBookImage(_imgCache, b);
-        if (img) b.img = img;
-      });
-    });
-    if(filtSchool&&filtLv){_books=booksDB[gk(filtSchool,filtLv)]||[];if(_books.length)renderGrid(_books);}
-  });
+  // Book cover images are fetched lazily per-book (see lazyLoadCover) instead of downloading
+  // the whole librairie/bookImages node upfront — that node can reach tens of MB and was
+  // making every page load slow, even for visitors who only browse one school/level.
 } catch(e) {
   console.warn('Firebase non configuré — utilisation localStorage uniquement');
 }
@@ -120,6 +115,7 @@ let remiseEnabled=false;
 let acompteEnabled=true;
 let avanceException=false;
 let livraisonEnabled=true;
+let acompteDefaultAmt='';
 let heroSubTxt='Parcourez par école et niveau, choisissez vos manuels, payez en toute sécurité — sans vous déplacer.';
 let deliveryNote='3 à 5 jours ouvrables après confirmation de la réservation.';
 let schoolLevels={'Lycée Carthage':['1ère Secondaire','2ème Secondaire','3ème Secondaire','Terminale Bac'],'Lycée Ibn Khaldoun':['7ème de base','8ème de base','9ème de base','1ère Secondaire','Terminale Bac'],'École Ariana Centre':['1ère Primaire','2ème Primaire','3ème Primaire','4ème Primaire','5ème Primaire','6ème Primaire'],'Collège Médina':['7ème de base','8ème de base','9ème de base'],'Lycée Bourguiba':['1ère Secondaire','2ème Secondaire','Terminale Bac'],'École El Menzah':['1ère Primaire','2ème Primaire','3ème Primaire','4ème Primaire','5ème Primaire','6ème Primaire']};
@@ -136,35 +132,61 @@ let filtEtab='';
 function getEtablissement(level){
   if(!level)return null;
   const l=level.toLowerCase().trim().replace(/['’‘èé]/g,c=>c==='è'||c==='é'?'e':c);
-  if(/^(cp|ce1|ce2|cm1|cm2|maternelle|ps|ms|gs|cp1|cp2)\b/.test(l))return 'Primaire';
+  // 1) Trust an explicit suffix keyword first — most reliable, and required for Tunisian labels
+  // like "1ère Primaire" or "7ème de base" where the leading digit alone is ambiguous.
+  if(/primaire/.test(l))return 'Primaire';
+  if(/(secondaire|lycee|\bbac\b)/.test(l))return 'Lycée';
+  if(/(college|de base)/.test(l)){
+    const m=l.match(/^(\d+)/);
+    if(m){const n=+m[1];if(n>=1&&n<=6)return 'Primaire';if(n>=7&&n<=9)return 'Collège';}
+    return 'Collège';
+  }
+  // 2) Fallback: French naming conventions with no explicit suffix keyword
+  if(/^(tps|cp|ce1|ce2|cm1|cm2|maternelle|ps|ms|gs|cp1|cp2)\b/.test(l))return 'Primaire';
   if(/^[3456]\s*(e|em|eme|ieme|ième|eme|ème)\b/.test(l)||/^(troisieme|quatrieme|cinquieme|sixieme)/.test(l))return 'Collège';
   if(/^2\s*(e|em|eme|nd|nde)\b/.test(l)||/^(deuxieme|seconde)\b/.test(l))return 'Lycée';
   if(/^1\s*(e|er|re|ere|ère|ere)\b/.test(l)||/^(premiere|première)\b/.test(l))return 'Lycée';
-  if(/^term/.test(l))return 'Lycée';
+  if(/^ter(m|\b)/.test(l))return 'Lycée';
   return null;
 }
 function etabColor(e){return e==='Primaire'?{bg:'#D1FAE5',tx:'#065F46'}:e==='Collège'?{bg:'#DBEAFE',tx:'#1E40AF'}:e==='Lycée'?{bg:'#EDE9FE',tx:'#5B21B6'}:{bg:'#F1F5F9',tx:'#475569'};}
 function setEtab(type){filtEtab=type;document.querySelectorAll('.etab-btn').forEach(b=>b.classList.toggle('on',b.dataset.type===type));buildSchoolOpts();document.getElementById('levelSel').innerHTML=`<option value="">${tr('chooselevel')}</option>`;}
 function buildSchoolOpts(){const ss=document.getElementById('schoolSel');const cur=ss.value;ss.innerHTML=`<option value="">${tr('chooseschool')}</option>`;Object.keys(schoolLevels).forEach(s=>{if(filtEtab&&filtEtab!=='Tous'){const ok=(schoolLevels[s]||[]).some(lv=>getEtablissement(lv)===filtEtab);if(!ok)return;}const o=document.createElement('option');o.value=s;o.textContent=s;ss.appendChild(o);});ss.value=cur;}
 function onSchoolChange(){const school=document.getElementById('schoolSel').value;const ls=document.getElementById('levelSel');ls.innerHTML=`<option value="">${tr('chooselevel')}</option>`;if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{if(filtEtab&&filtEtab!=='Tous'&&getEtablissement(lv)!==filtEtab)return;const o=document.createElement('option');o.value=lv;o.textContent=lv;ls.appendChild(o);});}
-function doSearch(q){document.getElementById('srchClr').classList.toggle('vis',q.length>0);if(!q.trim()){if(filtSchool&&filtLv)renderGrid(_books);else clearArea();return;}const words=q.toLowerCase().trim().split(/\s+/);const seen=new Set();const res=Object.values(booksDB).flat().filter(b=>{if(seen.has(b.id))return false;const hay=(b.title+' '+b.subject+' '+(b.ean||'')).toLowerCase();if(words.some(w=>hay.includes(w))){seen.add(b.id);return true;}return false;});if(!res.length){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">🔍</span><div class="es-title">${lang==='fr'?'Aucun résultat':'No results'}</div><p>${lang==='fr'?'Essayez un autre mot.':'Try a different keyword.'}</p></div>`;return;}document.getElementById('booksArea').innerHTML=`<div class="rbanner">🔍 ${res.length} ${lang==='fr'?'résultat(s)':'result(s)'}</div><div class="bgrid">${res.map(bHTML).join('')}</div>`;document.getElementById('cartBar').classList.add('vis');}
+function doSearch(q){document.getElementById('srchClr').classList.toggle('vis',q.length>0);if(!q.trim()){if(filtSchool&&filtLv)renderGrid(_books);else clearArea();return;}const words=q.toLowerCase().trim().split(/\s+/);const seen=new Set();const res=Object.values(booksDB).flat().filter(b=>{const dedupKey=b.ean&&b.ean.trim()?'ean:'+b.ean.trim():'title:'+b.title.trim().toLowerCase();if(seen.has(dedupKey))return false;const hay=(b.title+' '+b.subject+' '+(b.ean||'')).toLowerCase();if(words.some(w=>hay.includes(w))){seen.add(dedupKey);return true;}return false;});if(!res.length){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">🔍</span><div class="es-title">${lang==='fr'?'Aucun résultat':'No results'}</div><p>${lang==='fr'?'Essayez un autre mot.':'Try a different keyword.'}</p></div>`;return;}document.getElementById('booksArea').innerHTML=`<div class="rbanner">🔍 ${res.length} ${lang==='fr'?'résultat(s)':'result(s)'}</div><div class="bgrid">${res.map(bHTML).join('')}</div>`;document.getElementById('cartBar').classList.add('vis');res.forEach(lazyLoadCover);}
 function clearSearch(){document.getElementById('srch').value='';document.getElementById('srchClr').classList.remove('vis');if(filtSchool&&filtLv)renderGrid(_books);else clearArea();}
 function clearArea(){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">📚</span><div class="es-title">${tr('empty1')}</div><p>${tr('empty2')}</p></div>`;}
 function gk(s,l){return s+'|'+l;}
-function filterBooks(){const school=document.getElementById('schoolSel').value;const lv=document.getElementById('levelSel').value;if(!school||!lv){showToast('⚠️ '+(lang==='fr'?'Choisissez école et niveau':'Select school and level'));return;}filtSchool=school;filtLv=lv;_books=booksDB[gk(school,lv)]||[];_books.forEach(b=>{if(!b.img){const cached=bookImageUtils.resolveBookImage(_imgCache,b);if(cached){b.img=cached;return;}try{const imgKey=b.ean?bookImageUtils.normalizeBookImageKey(b.ean):null;const v=imgKey?localStorage.getItem('librairie_img_'+imgKey):null;if(v){_imgCache[imgKey]=v;b.img=v;}}catch(e){}}});cart={};renderGrid(_books);updateCart();document.getElementById('cartBar').classList.add('vis');}
+function filterBooks(){const school=document.getElementById('schoolSel').value;const lv=document.getElementById('levelSel').value;if(!school||!lv){showToast('⚠️ '+(lang==='fr'?'Choisissez école et niveau':'Select school and level'));return;}filtSchool=school;filtLv=lv;_books=booksDB[gk(school,lv)]||[];_books.forEach(b=>{if(!b.img){if(_imgCache[b.id]){b.img=_imgCache[b.id];}else{try{const v=localStorage.getItem('librairie_img_'+b.id);if(v){_imgCache[b.id]=v;b.img=v;}}catch(e){}}}});cart={};renderGrid(_books);updateCart();document.getElementById('cartBar').classList.add('vis');}
 function priceTTC(b){return b.priceHT;}
-function bHTML(b){const qty=cart[b.id]?cart[b.id].qty:0;const sel=qty>0;const ttc=priceTTC(b);return`<div class="bcard ${sel?'sel':''}" id="bc-${b.id}" onclick="toggleBook(${b.id})"><div class="btick">✓</div><div class="bcover">${b.img?`<img src="${b.img}" alt="${b.title}">`:`<div class="bcover-fb" style="background:${b.color}">${b.subject}<br><span style="font-size:1.4rem;margin-top:4px">📖</span></div>`}<div class="bcover-ean">EAN ${b.ean||'—'}</div></div><div class="bqty" onclick="event.stopPropagation()"><button class="qbtn" onclick="adjQty(event,${b.id},-1)">−</button><div class="qnum" id="qv-${b.id}">${qty||1}</div><button class="qbtn" onclick="adjQty(event,${b.id},1)">+</button></div><div class="binfo"><div class="btitle">${b.title}</div><div class="bsubj">${b.subject}</div><div class="bfoot"><div class="bprice">${ttc.toFixed(3)} TND</div><span class="bqbadge" id="qb-${b.id}">×${qty||1}</span></div></div></div>`;}
-function renderGrid(books){if(!books.length){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">📭</span><div class="es-title">${lang==='fr'?'Aucun livre pour ce niveau':'No books for this level'}</div></div>`;return;}document.getElementById('booksArea').innerHTML=`<div class="rbanner">📚 ${books.length} ${lang==='fr'?'livre(s) pour':'book(s) for'} <strong>${filtSchool}</strong> — <strong>${filtLv}</strong></div><div class="bgrid">${books.map(bHTML).join('')}</div>`;}
+function coverInner(b){return b.img?`<img src="${b.img}" alt="${b.title}">`:`<div class="bcover-fb" style="background:${b.color}">${b.subject}<br><span style="font-size:1.4rem;margin-top:4px">📖</span></div>`;}
+function bHTML(b){const qty=cart[b.id]?cart[b.id].qty:0;const sel=qty>0;const ttc=priceTTC(b);return`<div class="bcard ${sel?'sel':''}" id="bc-${b.id}" onclick="toggleBook(${b.id})"><div class="btick">✓</div><div class="bcover" id="bcv-${b.id}">${coverInner(b)}<div class="bcover-ean">EAN ${b.ean||'—'}</div></div><div class="bqty" onclick="event.stopPropagation()"><button class="qbtn" onclick="adjQty(event,${b.id},-1)">−</button><div class="qnum" id="qv-${b.id}">${qty||1}</div><button class="qbtn" onclick="adjQty(event,${b.id},1)">+</button></div><div class="binfo"><div class="btitle">${b.title}</div><div class="bsubj">${b.subject}</div><div class="bfoot"><div class="bprice">${ttc.toFixed(3)} TND</div><span class="bqbadge" id="qb-${b.id}">×${qty||1}</span></div></div></div>`;}
+function lazyLoadCover(b){
+  if(b.img)return;
+  if(_imgCache[b.id]){b.img=_imgCache[b.id];const el=document.getElementById('bcv-'+b.id);if(el)el.innerHTML=coverInner(b)+`<div class="bcover-ean">EAN ${b.ean||'—'}</div>`;return;}
+  if(!fbDb)return;
+  fbDb.ref('librairie/bookImages/'+b.id).once('value').then(snap=>{
+    const img=snap.val();if(!img)return;
+    b.img=img;_imgCache[b.id]=img;idbSave(b.id,img);
+    const el=document.getElementById('bcv-'+b.id);if(el)el.innerHTML=coverInner(b)+`<div class="bcover-ean">EAN ${b.ean||'—'}</div>`;
+  }).catch(()=>{});
+}
+function renderGrid(books){if(!books.length){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">📭</span><div class="es-title">${lang==='fr'?'Aucun livre pour ce niveau':'No books for this level'}</div></div>`;return;}document.getElementById('booksArea').innerHTML=`<div class="rbanner">📚 ${books.length} ${lang==='fr'?'livre(s) pour':'book(s) for'} <strong>${filtSchool}</strong> — <strong>${filtLv}</strong></div><div class="bgrid">${books.map(bHTML).join('')}</div>`;books.forEach(lazyLoadCover);}
 function toggleBook(id){const all=Object.values(booksDB).flat();const b=all.find(x=>x.id===id);if(!b)return;const card=document.getElementById('bc-'+id);if(cart[id]){delete cart[id];if(card)card.classList.remove('sel');}else{cart[id]={book:b,qty:1};if(card)card.classList.add('sel');const qv=document.getElementById('qv-'+id);if(qv)qv.textContent='1';const qbg=document.getElementById('qb-'+id);if(qbg)qbg.textContent='×1';}updateCart();}
 function adjQty(event,id,delta){event.stopPropagation();if(!cart[id])return;const nq=Math.max(1,cart[id].qty+delta);cart[id].qty=nq;const qv=document.getElementById('qv-'+id);if(qv)qv.textContent=nq;const qbg=document.getElementById('qb-'+id);if(qbg)qbg.textContent='×'+nq;updateCart();}
 function updateCart(){const items=Object.values(cart);const totalQty=items.reduce((s,i)=>s+i.qty,0);const totalRaw=items.reduce((s,i)=>s+priceTTC(i.book)*i.qty,0);const totalTTC=remiseEnabled?totalRaw*0.9:totalRaw;document.getElementById('cbadge').textContent=totalQty+(lang==='fr'?' article(s)':' item(s)');document.getElementById('ctot').textContent=(remiseEnabled?'🏷️ ':'')+totalTTC.toFixed(3)+' TND';const dis=totalQty===0;const btnOrd=document.getElementById('btnOrd');btnOrd.style.display=orderEnabled?'flex':'none';btnOrd.disabled=dis;document.getElementById('btnRes').disabled=dis;const btnDev=document.getElementById('btnDevis');if(btnDev)btnDev.disabled=dis;}
-function toggleOrderMode(enabled){orderEnabled=enabled;const lbl=document.getElementById('ord-status-lbl');const alert=document.getElementById('ord-alert');if(enabled){lbl.textContent='Les clients peuvent commander';lbl.style.color='var(--green)';if(alert)alert.style.display='none';}else{lbl.textContent='Commande en ligne désactivée';lbl.style.color='var(--oh)';if(alert)alert.style.display='block';}updateCart();showToast(enabled?'✅ Bouton Commander activé':'🔴 Bouton Commander désactivé');}
-function syncOrderToggle(){const tog=document.getElementById('tog-order');if(tog){tog.checked=orderEnabled;toggleOrderMode(orderEnabled);}}
+function applyOrderModeUI(){const lbl=document.getElementById('ord-status-lbl');const alert=document.getElementById('ord-alert');const tog=document.getElementById('tog-order');if(tog)tog.checked=orderEnabled;if(lbl){if(orderEnabled){lbl.textContent='Les clients peuvent commander';lbl.style.color='var(--green)';if(alert)alert.style.display='none';}else{lbl.textContent='Commande en ligne désactivée';lbl.style.color='var(--oh)';if(alert)alert.style.display='block';}}updateCart();}
+function toggleOrderMode(enabled){orderEnabled=enabled;applyOrderModeUI();saveDataToStorage();showToast(enabled?'✅ Bouton Commander activé':'🔴 Bouton Commander désactivé');}
+function syncOrderToggle(){applyOrderModeUI();}
 function applyRemiseBadge(){const badge=document.getElementById('remiseBadge');const btn=document.getElementById('remiseToggleBtn');if(!badge||!btn)return;if(remiseEnabled){badge.textContent='ON';badge.style.background='#20cf9e';btn.style.borderColor='#20cf9e';}else{badge.textContent='OFF';badge.style.background='rgba(255,255,255,.2)';btn.style.borderColor='rgba(255,255,255,.25)';}}
-function toggleRemise(){remiseEnabled=!remiseEnabled;applyRemiseBadge();try{localStorage.setItem('librairie_remise',remiseEnabled?'1':'0');}catch(e){}updateCart();if(Object.keys(cart).length>0){renderOrderSumm();renderResSumm();}showToast(remiseEnabled?'🏷️ Remise 10% activée':'🏷️ Remise 10% désactivée');}
-function toggleAcompte(){acompteEnabled=!acompteEnabled;const badge=document.getElementById('acompteBadge');const wrap=document.getElementById('acompteWrap');const area=document.getElementById('acompteInputArea');const blk=document.getElementById('avanceBlock');if(acompteEnabled){badge.textContent='ON';badge.style.background='#20cf9e';wrap.style.borderColor='#20cf9e';if(area)area.style.display='flex';if(blk)blk.style.display='block';}else{badge.textContent='OFF';badge.style.background='rgba(255,255,255,.2)';wrap.style.borderColor='rgba(255,255,255,.25)';if(area)area.style.display='none';if(blk)blk.style.display='none';}if(Object.keys(cart).length>0)renderResSumm();showToast(acompteEnabled?'💳 Avance activée':'💳 Avance désactivée');}
-function toggleLivraison(){livraisonEnabled=!livraisonEnabled;const badge=document.getElementById('livraisonBadge');const btn=document.getElementById('livraisonToggleBtn');if(livraisonEnabled){badge.textContent='ON';badge.style.background='rgba(255,255,255,.2)';btn.style.borderColor='rgba(255,255,255,.25)';}else{badge.textContent='OFF';badge.style.background='#e53e3e';btn.style.borderColor='#e53e3e';}if(Object.keys(cart).length>0)renderOrderSumm();showToast(livraisonEnabled?'🚚 Frais de livraison activés':'🚚 Livraison offerte');}
-function toggleException(){avanceException=!avanceException;const badge=document.getElementById('exceptionBadge');const btn=document.getElementById('exceptionBtn');if(avanceException){badge.textContent='ON';badge.style.background='orange';btn.style.borderColor='orange';const avInp=document.getElementById('avanceInput');if(avInp){avInp.placeholder='Montant libre (exception admin)';avInp.min='0';}const msg=document.getElementById('avanceMsg');if(msg){msg.style.color='orange';msg.textContent='⚡ Exception admin : avance libre, minimum 30% désactivé.';}showToast('⚡ Exception activée — avance libre');}else{badge.textContent='OFF';badge.style.background='rgba(255,255,255,.2)';btn.style.borderColor='rgba(255,165,0,.6)';const avInp=document.getElementById('avanceInput');if(avInp){avInp.placeholder='Laisser vide = 30% minimum';avInp.min='0';}const msg=document.getElementById('avanceMsg');if(msg){msg.style.color='var(--tx3)';msg.textContent='Vous pouvez payer plus de 30% si vous le souhaitez.';}showToast('⚡ Exception désactivée');}}
+function toggleRemise(){remiseEnabled=!remiseEnabled;applyRemiseBadge();try{localStorage.setItem('librairie_remise',remiseEnabled?'1':'0');}catch(e){}updateCart();if(Object.keys(cart).length>0){renderOrderSumm();renderResSumm();}saveDataToStorage();showToast(remiseEnabled?'🏷️ Remise 10% activée':'🏷️ Remise 10% désactivée');}
+function applyAcompteBadge(){const badge=document.getElementById('acompteBadge');const wrap=document.getElementById('acompteWrap');const area=document.getElementById('acompteInputArea');const blk=document.getElementById('avanceBlock');if(!badge||!wrap)return;if(acompteEnabled){badge.textContent='ON';badge.style.background='#20cf9e';wrap.style.borderColor='#20cf9e';if(area)area.style.display='flex';if(blk)blk.style.display='block';}else{badge.textContent='OFF';badge.style.background='rgba(255,255,255,.2)';wrap.style.borderColor='rgba(255,255,255,.25)';if(area)area.style.display='none';if(blk)blk.style.display='none';}}
+function toggleAcompte(){acompteEnabled=!acompteEnabled;applyAcompteBadge();if(Object.keys(cart).length>0)renderResSumm();saveDataToStorage();showToast(acompteEnabled?'💳 Avance activée':'💳 Avance désactivée');}
+function applyLivraisonBadge(){const badge=document.getElementById('livraisonBadge');const btn=document.getElementById('livraisonToggleBtn');if(!badge||!btn)return;if(livraisonEnabled){badge.textContent='ON';badge.style.background='rgba(255,255,255,.2)';btn.style.borderColor='rgba(255,255,255,.25)';}else{badge.textContent='OFF';badge.style.background='#e53e3e';btn.style.borderColor='#e53e3e';}}
+function toggleLivraison(){livraisonEnabled=!livraisonEnabled;applyLivraisonBadge();if(Object.keys(cart).length>0)renderOrderSumm();saveDataToStorage();showToast(livraisonEnabled?'🚚 Frais de livraison activés':'🚚 Livraison offerte');}
+function applyExceptionBadge(){const badge=document.getElementById('exceptionBadge');const btn=document.getElementById('exceptionBtn');if(!badge||!btn)return;const avInp=document.getElementById('avanceInput');const msg=document.getElementById('avanceMsg');if(avanceException){badge.textContent='ON';badge.style.background='orange';btn.style.borderColor='orange';if(avInp){avInp.placeholder='Montant libre (exception admin)';avInp.min='0';}if(msg){msg.style.color='orange';msg.textContent='⚡ Exception admin : avance libre, minimum 30% désactivé.';}}else{badge.textContent='OFF';badge.style.background='rgba(255,255,255,.2)';btn.style.borderColor='rgba(255,165,0,.6)';if(avInp){avInp.placeholder='Laisser vide = 30% minimum';avInp.min='0';}if(msg){msg.style.color='var(--tx3)';msg.textContent='Vous pouvez payer plus de 30% si vous le souhaitez.';}}}
+function toggleException(){avanceException=!avanceException;applyExceptionBadge();saveDataToStorage();showToast(avanceException?'⚡ Exception activée — avance libre':'⚡ Exception désactivée');}
+function saveAcompteDefault(inp){validateAcompteInp(inp);acompteDefaultAmt=inp.value;saveDataToStorage();}
 function checkAvance(inp){const min30=+(window._tot*0.3).toFixed(3);const val=parseFloat(inp.value);const msg=document.getElementById('avanceMsg');if(inp.value===''||isNaN(val)){inp.style.borderColor='var(--olt)';if(msg&&!avanceException){msg.style.color='var(--tx3)';msg.textContent='Laisser vide = avance par défaut ('+min30.toFixed(3)+' TND)';}return;}if(!avanceException&&val<min30){inp.style.borderColor='#D63031';if(msg){msg.style.color='#D63031';msg.textContent='⚠️ Minimum '+min30.toFixed(3)+' TND (30% du total)';}}else{inp.style.borderColor='var(--green)';if(msg){msg.style.color='var(--gh)';msg.textContent='✅ Avance : '+val.toFixed(3)+' TND — Reste : '+(window._tot-val).toFixed(3)+' TND';}}}
 function getAcompteAmt(total){const min30=+(total*0.3).toFixed(3);const inpAdmin=document.getElementById('acompteInp');const inpPage=document.getElementById('avanceInput');const hasPage=inpPage&&inpPage.value!=='';const hasAdmin=inpAdmin&&inpAdmin.value!=='';const valPage=hasPage?parseFloat(inpPage.value):NaN;const valAdmin=hasAdmin?parseFloat(inpAdmin.value):NaN;const val=hasPage&&!isNaN(valPage)?valPage:(hasAdmin&&!isNaN(valAdmin)?valAdmin:NaN);if(!isNaN(val)){if(avanceException)return Math.max(0,val);return Math.max(val,min30);}return min30;}
 function validateAcompteInp(inp){const total=window._tot||0;const min30=+(total*0.3).toFixed(3);const val=parseFloat(inp.value);if(!isNaN(val)&&val<min30){inp.style.background='#FFCCCC';inp.title='Minimum : '+min30.toFixed(3)+' TND (30%)';}else{inp.style.background='rgba(255,255,255,.9)';inp.title='Laisser vide = 30% · Minimum 30% du total';}if(Object.keys(cart).length>0)renderResSumm();}
@@ -185,7 +207,7 @@ function confirmOrder(type){let name,phone,address,payLabel;if(type==='order'){n
 function closeModal(){document.getElementById('succModal').classList.remove('vis');cart={};_books=[];filtSchool='';filtLv='';['fname','fphone','faddr','femail','rfname','rfphone'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});go('p1');}
 function dlPDF(orderData){const order=orderData||lastOrder;if(!order){showToast('Aucune commande');return;}const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});const W=210,H=297,M=14;let y=0;doc.setFillColor(232,96,28);doc.rect(0,0,W,3,'F');y=3;doc.setFillColor(27,43,75);doc.rect(0,y,W,42,'F');if(logoUrl){try{doc.addImage(logoUrl,'PNG',M,y+7,26,26);}catch(e){}}const tx=logoUrl?M+32:M;doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text(libName,tx,y+17);doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(160,180,210);doc.text('Matricule Fiscal : '+libMF,tx,y+25);doc.text('Point de vente : '+libName,tx,y+31);doc.text(libAddr+' · Tél : '+libTel,tx,y+37);doc.setFillColor(0,168,120);doc.roundedRect(W-M-45,y+6,45,30,3,3,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(order.type==='reserve'?'RÉSERVATION':'BON DE COMMANDE',W-M-22.5,y+16,{align:'center'});doc.setFontSize(8);doc.text('N° '+String(order.id).padStart(6,'0'),W-M-22.5,y+23,{align:'center'});doc.text('Date : '+order.date,W-M-22.5,y+30,{align:'center'});y+=42;doc.setFillColor(232,96,28);doc.rect(0,y,W,2,'F');y+=6;const blockH=32;doc.setFillColor(245,246,249);doc.rect(M,y,85,blockH,'F');doc.setDrawColor(226,230,239);doc.setLineWidth(0.5);doc.rect(M,y,85,blockH,'S');doc.setFillColor(27,43,75);doc.rect(M,y,85,6,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('Société',M+3,y+4.2);doc.setTextColor(27,43,75);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(libName,M+3,y+11);doc.text('Mat. Fiscal : '+libMF,M+3,y+17);doc.text('Adresse : '+libAddr,M+3,y+23);doc.text('Téléphone : '+libTel,M+3,y+29);const cx=M+90;doc.setFillColor(254,240,232);doc.rect(cx,y,W-cx-M,blockH,'F');doc.setDrawColor(232,96,28);doc.rect(cx,y,W-cx-M,blockH,'S');doc.setFillColor(232,96,28);doc.rect(cx,y,W-cx-M,6,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('client',cx+3,y+4.2);doc.setTextColor(27,43,75);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Nom et Prénom : '+order.name,cx+3,y+11);doc.setFont('helvetica','normal');doc.text('Tél : '+order.phone,cx+3,y+17);doc.text('Adresse : '+order.address,cx+3,y+23);doc.text('École : '+order.school+' — '+order.level,cx+3,y+29);y+=blockH+7;const colRef=M,colLib=M+22,colQte=W-92,colPU=W-79,colRem=W-63,colNetHT=W-50,colTVA=W-37,colTTC=W-M;doc.setFillColor(27,43,75);doc.rect(M,y,W-2*M,9,'F');doc.setFillColor(232,96,28);doc.rect(M,y,3,9,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Référence',colRef+4,y+5.8);doc.text('Libellé',colLib,y+5.8);doc.text('QTE',colQte,y+5.8,{align:'center'});doc.text('Prix Unit (HT)',colPU,y+5.8,{align:'right'});doc.text('Remise',colRem,y+5.8,{align:'right'});doc.text('PU NetHT',colNetHT,y+5.8,{align:'right'});doc.text('TVA',colTVA,y+5.8,{align:'center'});doc.text('Total (TTC)',colTTC,y+5.8,{align:'right'});y+=9;const pageArr=[1];order.items.forEach((item,idx)=>{const rh=9;if(y+rh>H-25){pdfDrawFooter(doc,W,H,libName,libAddr,libTel,order.type);doc.setTextColor(130,140,160);doc.setFontSize(6.5);doc.text('Page '+pageArr[0],W-M,H-20,{align:'right'});y=pdfNewPage(doc,W,H,M,libName,libAddr,libTel,order.type,colRef,colLib,colQte,colPU,colRem,colNetHT,colTVA,colTTC,pageArr);}doc.setFillColor(idx%2===0?255:248,idx%2===0?255:249,idx%2===0?255:252);doc.rect(M,y,W-2*M,rh,'F');doc.setFillColor(232,96,28);doc.rect(M,y,1.5,rh,'F');doc.setTextColor(27,43,75);doc.setFont('helvetica','normal');doc.setFontSize(7.2);doc.text(item.ean.substring(0,10),colRef+2,y+5.8);const lib=(item.title||'').length>30?(item.title||'').substring(0,29)+'…':(item.title||'');doc.text(lib,colLib,y+5.8);doc.text(String(item.qty),colQte,y+5.8,{align:'center'});doc.setTextColor(100,110,130);doc.text(item.priceHT.toFixed(3)+' DT',colPU,y+5.8,{align:'right'});doc.text(item.remise+'%',colRem,y+5.8,{align:'right'});doc.setTextColor(27,43,75);doc.text(item.netHT.toFixed(3)+' DT',colNetHT,y+5.8,{align:'right'});doc.setTextColor(100,110,130);doc.text(String(item.tva),colTVA,y+5.8,{align:'center'});doc.setTextColor(232,96,28);doc.setFont('helvetica','bold');doc.text((item.ttc*item.qty).toFixed(3)+' DT',colTTC,y+5.8,{align:'right'});y+=rh;});y+=4;if(y+65>H-25){pdfDrawFooter(doc,W,H,libName,libAddr,libTel,order.type);doc.setTextColor(130,140,160);doc.setFontSize(6.5);doc.text('Page '+pageArr[0],W-M,H-20,{align:'right'});doc.addPage();pageArr[0]++;y=20;}const tblX=W-M-70,tblW=70;if(order.remiseAmt>0){doc.setFillColor(230,247,242);doc.rect(tblX,y,tblW,9,'F');doc.setDrawColor(32,207,158);doc.setLineWidth(0.4);doc.rect(tblX,y,tblW,9,'S');doc.setTextColor(0,127,92);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text('Remise 10%',tblX+4,y+5.8);doc.text('-'+order.remiseAmt.toFixed(3)+' DT',tblX+tblW-3,y+5.8,{align:'right'});y+=11;}doc.setFillColor(232,96,28);doc.rect(tblX,y,tblW,10,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Total TTC',tblX+4,y+6.8);doc.text(order.total.toFixed(3)+' DT',tblX+tblW-3,y+6.8,{align:'right'});y+=13;if(order.type==='reserve'&&order.acompteAmt>0){const acompte=(order.acompteAmt).toFixed(3);const rest=(order.total-order.acompteAmt).toFixed(3);const pct=Math.round(order.acompteAmt/order.total*100);doc.setFillColor(254,240,232);doc.rect(tblX,y,tblW,8,'F');doc.setDrawColor(232,96,28);doc.setLineWidth(0.3);doc.rect(tblX,y,tblW,8,'S');doc.setTextColor(200,78,20);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Avance ('+pct+'%)',tblX+3,y+5.2);doc.text(acompte+' DT',tblX+tblW-3,y+5.2,{align:'right'});y+=10;doc.setFillColor(230,247,242);doc.rect(tblX,y,tblW,8,'F');doc.setDrawColor(0,127,92);doc.rect(tblX,y,tblW,8,'S');doc.setTextColor(0,127,92);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Reste à payer',tblX+3,y+5.2);doc.text(rest+' DT',tblX+tblW-3,y+5.2,{align:'right'});y+=14;}else{y+=3;}const pc=order.payment==='Visa Card'?[27,43,75]:order.payment==='E-Dinar'?[0,168,120]:[232,96,28];doc.setFillColor(...pc);doc.roundedRect(M,y,55,9,3,3,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Mode : '+order.payment,M+4,y+5.8);y+=16;if(order.type!=='reserve'){const sigY=y;doc.setDrawColor(200,208,224);doc.setLineWidth(0.4);doc.rect(W-M-62,sigY,62,28,'S');doc.setTextColor(74,85,104);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('Cachet et Signature CLIENT',W-M-59,sigY+6);for(let i=0;i<3;i++){doc.setDrawColor(200,208,224);doc.setLineWidth(0.3);doc.line(W-M-58,sigY+12+(i*5),W-M-3,sigY+12+(i*5));}const stx=M,sty=sigY,stw=80,sth=28;doc.setDrawColor(30,80,160);doc.setLineWidth(0.8);doc.rect(stx,sty,stw,sth,'S');doc.setDrawColor(30,80,160);doc.setLineWidth(0.3);doc.rect(stx+1.5,sty+1.5,stw-3,sth-3,'S');doc.setTextColor(30,80,160);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(libName,stx+stw/2,sty+7,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.text(libAddr,stx+stw/2,sty+12.5,{align:'center'});doc.setFontSize(7);doc.text('MF: '+libMF,stx+stw/2,sty+17.5,{align:'center'});doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text(libTel,stx+stw/2,sty+23,{align:'center'});doc.setTextColor(74,85,104);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Cachet et Signature',stx+3,sty+sth+5);y=sigY+36;}doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Merci de votre confiance — conserver ce document comme preuve de votre '+(order.type==='reserve'?'réservation.':'commande.'),W/2,H-6,{align:'center'});doc.setTextColor(130,140,160);doc.setFontSize(6.5);const now=new Date();doc.text(now.toLocaleString('fr-FR'),M,H-20);doc.text('Page 1/1',W-M,H-20,{align:'right'});doc.save((order.type==='reserve'?'reservation_':'commande_')+order.name.replace(/\s+/g,'_')+'_'+String(order.id).padStart(6,'0')+'.pdf');showToast('📄 '+(lang==='fr'?'Document téléchargé':'Document downloaded'));}
 function doLogin(){const u=document.getElementById('al-u').value;const p=document.getElementById('al-p').value;if(u===adminUser&&p===adminPass){document.getElementById('al-page').classList.remove('vis');openAdmin();}else{document.getElementById('alerr').textContent='✗ Identifiants incorrects.';}}
-function openAdmin(){['p1','p2','p3','p4'].forEach(p=>document.getElementById(p).classList.remove('active'));document.getElementById('adm-page').classList.add('active');document.getElementById('s-name').value=libName;document.getElementById('s-tag').value=libTag;document.getElementById('s-tel').value=libTel;document.getElementById('s-mf').value=libMF;document.getElementById('s-addr').value=libAddr;document.getElementById('s-del').value=deliveryFee.toFixed(3);document.getElementById('s-usr').value=adminUser;const hsub=document.getElementById('s-hsub');if(hsub)hsub.value=heroSubTxt;const dnote=document.getElementById('s-dnote');if(dnote)dnote.value=deliveryNote;syncLogos();renderSchoolTags();buildAdmSchOpts();updateStorageInfo();syncOrderToggle();aTab(0);}
+function openAdmin(){['p1','p2','p3','p4'].forEach(p=>document.getElementById(p).classList.remove('active'));document.getElementById('adm-page').classList.add('active');document.getElementById('s-name').value=libName;document.getElementById('s-tag').value=libTag;document.getElementById('s-tel').value=libTel;document.getElementById('s-mf').value=libMF;document.getElementById('s-addr').value=libAddr;document.getElementById('s-del').value=deliveryFee.toFixed(3);document.getElementById('s-usr').value=adminUser;const hsub=document.getElementById('s-hsub');if(hsub)hsub.value=heroSubTxt;const dnote=document.getElementById('s-dnote');if(dnote)dnote.value=deliveryNote;syncLogos();renderSchoolTags();buildAdmSchOpts();updateStorageInfo();syncOrderToggle();applyRemiseBadge();applyAcompteBadge();applyLivraisonBadge();applyExceptionBadge();const ai=document.getElementById('acompteInp');if(ai)ai.value=acompteDefaultAmt||'';aTab(0);}
 function logout(){document.getElementById('adm-page').classList.remove('active');go('p1');}
 let curAT=0;
 let _xlRows=[],_xlHeaders=[];
@@ -227,10 +249,30 @@ function showExcelMapper(){
     });
     return best;
   };
-  const iT=findCol('designation','titre','title','nom livre','libelle','lib','description');
+  // Content sniffing: a column full of digit-only codes is an EAN/ref column, not a title
+  const sampleVals=(colIdx,n=10)=>{const vals=[];for(let i=0;i<_xlRows.length&&vals.length<n;i++){const v=String(_xlRows[i][colIdx]??'').trim();if(v)vals.push(v);}return vals;};
+  const looksLikeCode=v=>/^[\d\s\-]{5,}$/.test(v);
+  const isMostlyCodeCol=colIdx=>{if(colIdx<0)return false;const vals=sampleVals(colIdx);if(!vals.length)return false;return vals.filter(looksLikeCode).length/vals.length>=0.6;};
+  const looksLikeNumber=v=>/^-?\d+([.,]\d+)?$/.test(v.trim());
+  const isMostlyNumberCol=colIdx=>{if(colIdx<0)return false;const vals=sampleVals(colIdx);if(!vals.length)return false;return vals.filter(looksLikeNumber).length/vals.length>=0.6;};
   const iE=findCol('ean','isbn','code barre','barcode','ref article','reference','ref');
-  const iSub=findCol('matiere','matieres','discipline','subject','famille','categorie');
-  const iP=findCol('prix','price','tarif','montant','pvt','pvttc');
+  let iT=findCol('designation','titre','title','nom livre','libelle','lib','description');
+  // Guard: the Title column must hold text, must differ from the EAN column, and must not itself look like a code column
+  if(iT<0||iT===iE||isMostlyCodeCol(iT)){
+    const altT=_xlHeaders.map((_,i)=>i).find(i=>i!==iE&&!isMostlyCodeCol(i)&&_xlRows.some(r=>String(r[i]||'').trim()!==''));
+    if(altT!==undefined)iT=altT;
+  }
+  // Guard: the Price column must actually contain decimal numbers — if not, it was likely mismatched with Matière
+  let iP=findCol('prix','price','tarif','montant','pvt','pvttc');
+  if(iP>=0&&!isMostlyNumberCol(iP)){
+    const altP=_xlHeaders.map((_,i)=>i).find(i=>i!==iT&&i!==iE&&isMostlyNumberCol(i));
+    iP=altP!==undefined?altP:-1;
+  }
+  let iSub=findCol('matiere','matieres','discipline','subject','famille','categorie');
+  if(iSub>=0&&isMostlyNumberCol(iSub)){
+    const altSub=_xlHeaders.map((_,i)=>i).find(i=>i!==iT&&i!==iE&&i!==iP&&!isMostlyNumberCol(i)&&!isMostlyCodeCol(i)&&_xlRows.some(r=>String(r[i]||'').trim()!==''));
+    iSub=altSub!==undefined?altSub:-1;
+  }
   const iS=findCol('ecole','etablissement','school','institution');
   const iL=findCol('classe','niveau','niveaux','level','class','annee');
   ['xlColTitle','xlColEan','xlColSchool','xlColLevel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
@@ -249,23 +291,41 @@ function xlCheckConflicts(){
     const v=g(id);if(v<0)return;
     if(used[v]){conflict=true;}else used[v]=label;
   });
+  const titleEanClash=g('xlColTitle')===g('xlColEan');
+  const priceIdx=g('xlColPrix');
+  const looksLikeNumber=v=>/^-?\d+([.,]\d+)?$/.test(v.trim());
+  const priceLooksWrong=priceIdx>=0&&(()=>{
+    const vals=[];for(let i=0;i<_xlRows.length&&vals.length<10;i++){const v=String(_xlRows[i][priceIdx]??'').trim();if(v)vals.push(v);}
+    if(!vals.length)return false;
+    return vals.filter(looksLikeNumber).length/vals.length<0.6;
+  })();
+  const blocking=titleEanClash||priceLooksWrong;
   let warn=document.getElementById('xlConflictWarn');
   if(!warn){warn=document.createElement('div');warn.id='xlConflictWarn';warn.style.cssText='margin-bottom:10px;padding:8px 12px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;font-size:.8rem;color:#92400E;font-weight:600';const w=document.getElementById('xlMapWrap');if(w)w.insertBefore(warn,w.querySelector('.twrap'));}
-  warn.style.display=conflict?'block':'none';
-  warn.textContent=conflict?'⚠️ Two columns point to the same index — please check the dropdowns above before importing.':'';
+  warn.style.display=(conflict||blocking)?'block':'none';
+  warn.textContent=titleEanClash?'🚫 Les colonnes Titre et EAN/Ref pointent vers la même colonne — corrigez avant d\'importer, sinon le titre affichera le code EAN.'
+    :priceLooksWrong?'🚫 La colonne Prix sélectionnée ne contient pas de nombres — corrigez-la avant d\'importer, sinon les livres seront importés à 0.000 TND.'
+    :(conflict?'⚠️ Deux colonnes pointent vers le même index — vérifiez les listes ci-dessus avant d\'importer.':'');
+  const btn=document.getElementById('xlImportBtn');
+  if(btn){btn.disabled=blocking;btn.style.opacity=blocking?'.5':'1';btn.style.cursor=blocking?'not-allowed':'pointer';}
 }
 function xlUpdatePreview(){
   const g=id=>{const el=document.getElementById(id);return el?+el.value:0;};
   const go=id=>{const el=document.getElementById(id);return el?+el.value:-1;};
   const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix');
   const prev=_xlRows.slice(0,6);
+  const looksLikeCode=v=>{const s=String(v).trim();return s&&!/\s/.test(s)&&s.length<=20;};
+  const looksLikeTitle=v=>{const s=String(v).trim();return /\s/.test(s)||s.length>20;};
   const tb=document.getElementById('xlPrevBody');
-  if(tb)tb.innerHTML=prev.map(r=>`<tr>
-    <td>${r[iT]||'—'}</td>
-    <td style="font-size:.73rem;color:var(--tx3)">${r[iE]||'—'}</td>
+  if(tb)tb.innerHTML=prev.map(r=>{
+    let title=String(r[iT]||'').trim(),ean=String(r[iE]||'').trim();
+    if(looksLikeCode(title)&&looksLikeTitle(ean)){[title,ean]=[ean,title];title=title.replace(/^ean[\s:.\-]*/i,'').trim();}
+    return`<tr>
+    <td>${title||'—'}</td>
+    <td style="font-size:.73rem;color:var(--tx3)">${ean||'—'}</td>
     <td style="color:var(--tx2)">${iSub>=0?(r[iSub]||'—'):'—'}</td>
     <td style="color:var(--green)">${iP>=0?(r[iP]||'—'):'—'}</td>
-  </tr>`).join('');
+  </tr>`;}).join('');
   const cnt=document.getElementById('xlCount');
   if(cnt)cnt.textContent=_xlRows.length+' ligne(s) détectée(s) · aperçu des 6 premières';
 }
@@ -356,10 +416,25 @@ function doExcelImport(){
   const go=id=>{const el=document.getElementById(id);return el&&el.value!==''?+el.value:-1;};
   const iT=g('xlColTitle'),iE=g('xlColEan'),iSub=go('xlColSubject'),iP=go('xlColPrix'),iS=g('xlColSchool'),iL=g('xlColLevel');
   if(!_xlRows.length){alert('Aucune donnée à importer. Veuillez d\'abord charger un fichier Excel.');return;}
+  if(iT===iE){alert('🚫 Les colonnes Titre et EAN/Ref pointent vers la même colonne. Corrigez le mappage avant d\'importer.');return;}
+  if(iP>=0){
+    const looksLikeNumber=v=>/^-?\d+([.,]\d+)?$/.test(v.trim());
+    const vals=[];for(let i=0;i<_xlRows.length&&vals.length<10;i++){const v=String(_xlRows[i][iP]??'').trim();if(v)vals.push(v);}
+    if(vals.length&&vals.filter(looksLikeNumber).length/vals.length<0.6){alert('🚫 La colonne Prix sélectionnée ne contient pas de nombres. Corrigez le mappage avant d\'importer, sinon les livres seront importés à 0.000 TND.');return;}
+  }
   let added=0,skipped=0,schoolsCreated=0,levelsCreated=0;
   _xlRows.forEach(r=>{
-    const title=String(r[iT]||'').trim();
-    const ean=String(r[iE]||'').trim();
+    let title=String(r[iT]||'').trim();
+    let ean=String(r[iE]||'').trim();
+    // Per-row safety net: some source files have Titre/EAN swapped on individual rows (not the whole column) —
+    // a real title has spaces (several words); a code/ref/EAN is one short unbroken token. If THIS row's
+    // "title" looks like a code and its "ean" cell looks like an actual title, swap them back for this row only.
+    const looksLikeCode=v=>{const s=v.trim();return s&&!/\s/.test(s)&&s.length<=20;};
+    const looksLikeTitle=v=>{const s=v.trim();return /\s/.test(s)||s.length>20;};
+    if(looksLikeCode(title)&&looksLikeTitle(ean)){
+      [title,ean]=[ean,title];
+      title=title.replace(/^ean[\s:.\-]*/i,'').trim();
+    }
     const subject=iSub>=0?String(r[iSub]||'').trim():'';
     const prixRaw=iP>=0?parseFloat(String(r[iP]||'').replace(',','.')):0;
     const prix=isNaN(prixRaw)?0:prixRaw;
@@ -388,10 +463,16 @@ function doExcelImport(){
     // Skip if book already exists (by EAN or title)
     const exists=booksDB[key].some(b=>(ean&&b.ean===ean)||(b.title===title));
     if(exists){skipped++;return;}
-    booksDB[key].push({id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,ean,subject,priceHT:prix,color:''});
+    // If this EAN already exists in another school/level list, inherit its price/subject/photo — then propagate the merged result to ALL matching entries (same EAN = same book everywhere)
+    const eanMatch=ean?findBookByEan(ean):null;
+    const newId='b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+    const finalPrice=prix>0?prix:(eanMatch?eanMatch.priceHT:prix);
+    const finalSubject=subject||(eanMatch?eanMatch.subject:subject);
+    const newBook={id:newId,title,ean,subject:finalSubject,priceHT:finalPrice,color:eanMatch?eanMatch.color:'',img:eanMatch?eanMatch.img:''};
+    booksDB[key].push(newBook);
+    if(ean)propagateBookByEan(newBook);
     added++;
   });
-  syncBookImagesByEan();
   saveDataToStorage();
   if(fbDb){
     const fbSafe=k=>k.replace(/[.#$\/\[\]]/g,'_');
@@ -476,63 +557,19 @@ function genFournisseurCmd(){
   const res=document.getElementById('fourResult');
   if(res){res.style.display='block';res.scrollIntoView({behavior:'smooth',block:'start'});}
 }
-function dlFournisseurPDF(){
+function dlFournisseurExcel(){
   if(!_fourAgg||!_fourAgg.length){alert('Générez d\'abord la commande.');return;}
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({unit:'mm',format:'a4'});
-  const W=210,H=297,M=14;
-  doc.setFillColor(0,168,120);doc.rect(0,0,W,22,'F');
-  doc.setFillColor(232,96,28);doc.rect(0,22,W,3,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(15);
-  doc.text(libName,M,10);
-  doc.setFontSize(8.5);doc.setFont('helvetica','normal');
-  doc.text(libAddr+' · Tél : '+libTel,M,16);
-  doc.setTextColor(27,43,75);doc.setFont('helvetica','bold');doc.setFontSize(13);
-  doc.text('BON DE COMMANDE FOURNISSEUR',W/2,33,{align:'center'});
-  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100,110,130);
-  doc.text('Date : '+new Date().toLocaleDateString('fr-FR'),W-M,33,{align:'right'});
-  doc.setTextColor(27,43,75);doc.setFontSize(8);
-  const totalQty=_fourAgg.reduce((s,x)=>s+x.qty,0);
-  doc.text(_fourAgg.length+' titre(s) · '+totalQty+' exemplaire(s) au total',M,40);
-  let y=47;
-  const cT=M,cE=M+100,cQ=W-M;
-  doc.setFillColor(27,43,75);doc.rect(M,y,W-2*M,8,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-  doc.text('Titre',cT+2,y+5.5);doc.text('EAN',cE,y+5.5);doc.text('Qté',cQ,y+5.5,{align:'right'});
-  y+=8;
-  _fourAgg.forEach((r,i)=>{
-    if(y+8>H-20){
-      doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');
-      doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');
-      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);
-      doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});
-      doc.addPage();y=20;
-      doc.setFillColor(27,43,75);doc.rect(M,y,W-2*M,8,'F');
-      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-      doc.text('Titre',cT+2,y+5.5);doc.text('EAN',cE,y+5.5);doc.text('Qté',cQ,y+5.5,{align:'right'});
-      y+=8;
-    }
-    doc.setFillColor(i%2===0?255:245,i%2===0?255:247,i%2===0?255:255);
-    doc.rect(M,y,W-2*M,8,'F');
-    doc.setTextColor(27,43,75);doc.setFont('helvetica','normal');doc.setFontSize(8);
-    const tit=r.title.length>52?r.title.substring(0,51)+'…':r.title;
-    doc.text(tit,cT+2,y+5.3);
-    doc.setTextColor(100,110,130);doc.text(r.ean,cE,y+5.3);
-    doc.setTextColor(232,96,28);doc.setFont('helvetica','bold');doc.setFontSize(9);
-    doc.text(String(r.qty),cQ,y+5.5,{align:'right'});
-    y+=8;
-  });
-  y+=4;
-  doc.setDrawColor(200,200,210);doc.setLineWidth(0.3);doc.line(M,y,W-M,y);y+=6;
-  doc.setTextColor(27,43,75);doc.setFont('helvetica','bold');doc.setFontSize(9);
-  doc.text('Total : '+totalQty+' exemplaire(s)',W-M,y,{align:'right'});
-  doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');
-  doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
-  doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});
-  doc.setFont('helvetica','normal');doc.setFontSize(7);
-  doc.text('Document généré le '+new Date().toLocaleDateString('fr-FR'),W/2,H-6,{align:'center'});
-  doc.save('commande-fournisseur-'+new Date().toISOString().slice(0,10)+'.pdf');
+  if(typeof XLSX==='undefined'){alert('La bibliothèque Excel n\'est pas chargée. Vérifiez votre connexion internet et rechargez la page.');return;}
+  const aoa=[
+    ['Titre / Désignation','EAN / Ref','Quantité'],
+    ..._fourAgg.map(r=>[r.title,r.ean,r.qty])
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:55},{wch:18},{wch:10}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Commande fournisseur');
+  XLSX.writeFile(wb,'commande-fournisseur-'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('📊 Excel téléchargé');
 }
 function aTab(i){curAT=i;document.querySelectorAll('.atab').forEach((t,j)=>t.classList.toggle('on',j===i));document.querySelectorAll('.tpanel').forEach((p,j)=>p.classList.toggle('on',j===i));if(i===0)renderDash();if(i===1)renderOrders();if(i===2)renderResvs();if(i===3)renderClients();if(i===4)renderReceipts();if(i===5)updateStorageInfo();if(i===6)renderFournisseur();}
 function toggleDelivery(id){const o=orders.find(r=>String(r.id)===String(id));if(!o)return;o.delivered=!o.delivered;saveDataToStorage();renderOrders();showToast(o.delivered?'📦 Marquée comme livrée':'🕐 Marquée comme non livrée');}
@@ -548,12 +585,52 @@ function dlPDFById(id){const r=[...orders,...reservations].find(r=>String(r.id)=
 function pdfDrawFooter(doc,W,H,libName,libAddr,libTel,type){doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Merci de votre confiance — conserver ce document comme preuve de votre '+(type==='reserve'?'réservation.':'commande.'),W/2,H-6,{align:'center'});}
 function pdfNewPage(doc,W,H,M,libName,libAddr,libTel,type,colRef,colLib,colQte,colPU,colRem,colNetHT,colTVA,colTTC,pageArr){pdfDrawFooter(doc,W,H,libName,libAddr,libTel,type);doc.addPage();pageArr[0]++;doc.setFillColor(27,43,75);doc.rect(M,8,W-2*M,9,'F');doc.setFillColor(232,96,28);doc.rect(M,8,3,9,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Référence',colRef+4,13.8);doc.text('Libellé',colLib,13.8);doc.text('QTE',colQte,13.8,{align:'center'});doc.text('Prix Unit (HT)',colPU,13.8,{align:'right'});doc.text('Remise',colRem,13.8,{align:'right'});doc.text('PU NetHT',colNetHT,13.8,{align:'right'});doc.text('TVA',colTVA,13.8,{align:'center'});doc.text('Total (TTC)',colTTC,13.8,{align:'right'});return 17;}
 function renderReceipts(){const all=[...orders,...reservations].slice().reverse();const w=document.getElementById('recWrap');if(!all.length){w.innerHTML=`<div style="padding:2rem;text-align:center;color:var(--tx3);font-size:.86rem">Aucun reçu pour le moment.</div>`;return;}w.innerHTML=all.map(r=>`<div class="rec-row"><div class="rec-info"><div class="rec-name">#${String(r.id).padStart(4,'0')} — ${r.name} <span class="badge ${r.type==='order'?'bvis':'bres'}" style="margin-left:4px">${r.type==='order'?'Commande':'Réservation'}</span></div><div class="rec-meta">${r.phone} · ${r.school} · ${r.level} · ${r.totalQty} livre(s) · <span class="badge ${r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':'bcash'}">${r.payment}</span> · ${r.date}</div></div><div class="rec-price">${r.total.toFixed(3)} DT</div><button class="rec-dl" onclick="dlPDFById(${r.id})">📄 Télécharger</button></div>`).join('');}
-function saveLogos(){try{if(logoUrl)localStorage.setItem('librairie_logo',logoUrl);else localStorage.removeItem('librairie_logo');}catch(e){}try{if(logoNavUrl)localStorage.setItem('librairie_navlogo',logoNavUrl);else localStorage.removeItem('librairie_navlogo');}catch(e){}if(fbDb){fbDb.ref('librairie/logos').set({main:logoUrl||'',nav:logoNavUrl||''}).catch(()=>{});}}
+function saveLogos(cb){
+  try{if(logoUrl)localStorage.setItem('librairie_logo',logoUrl);else localStorage.removeItem('librairie_logo');}catch(e){}
+  try{if(logoNavUrl)localStorage.setItem('librairie_navlogo',logoNavUrl);else localStorage.removeItem('librairie_navlogo');}catch(e){}
+  if(!fbDb){if(cb)cb(false,'Firebase non connecté — le logo restera uniquement sur cet appareil.');return;}
+  fbDb.ref('librairie/logos').set({main:logoUrl||'',nav:logoNavUrl||''})
+    .then(()=>{if(cb)cb(true);})
+    .catch(e=>{console.error('❌ Erreur sync logo:',e);if(cb)cb(false,e.message);});
+}
 function loadLogos(){try{const l=localStorage.getItem('librairie_logo');if(l&&!logoUrl)logoUrl=l;}catch(e){}try{const l=localStorage.getItem('librairie_navlogo');if(l&&!logoNavUrl)logoNavUrl=l;}catch(e){}}
-function uploadLogo(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{logoUrl=e.target.result;saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('✅ Logo page d\'accueil téléchargé');};rd.readAsDataURL(f);}
-function clearLogo(){logoUrl='';saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('🗑️ Logo page d\'accueil effacé');}
-function uploadNavLogo(input){const f=input.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{logoNavUrl=e.target.result;saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('✅ Logo navigation téléchargé');};rd.readAsDataURL(f);}
-function clearNavLogo(){logoNavUrl='';saveLogos();if(autoSave)saveDataToStorage();syncLogos();showToast('🗑️ Logo navigation effacé');}
+const LOGO_MAX_BYTES=5*1024*1024;
+function syncLogoField(kind,dataUrl,file,label){
+  const fallback=()=>{saveLogos((ok,err)=>{showToast(ok?'✅ '+label+' synchronisé sur tous les appareils':'❌ Échec de synchronisation : '+(err||'erreur inconnue')+' — réessayez');});};
+  if(fbStorage&&fbDb){
+    fbStorage.ref('logos/'+kind+'.jpg').put(file)
+      .then(snap=>snap.ref.getDownloadURL())
+      .then(url=>fbDb.ref('librairie/logos/'+kind).set(url))
+      .then(()=>{showToast('✅ '+label+' synchronisé (Firebase Storage) sur tous les appareils');})
+      .catch(()=>{fallback();});
+  }else{
+    fallback();
+  }
+}
+function uploadLogo(input){
+  const f=input.files[0];if(!f)return;
+  if(f.size>LOGO_MAX_BYTES){showToast('⚠️ Image trop lourde (max 5 Mo) — elle risque de ne pas se synchroniser entre appareils');input.value='';return;}
+  const rd=new FileReader();
+  rd.onload=e=>{
+    logoUrl=e.target.result;syncLogos();if(autoSave)saveDataToStorage();
+    showToast('⏳ Logo en cours de synchronisation...');
+    syncLogoField('main',logoUrl,f,'Logo page d\'accueil');
+  };
+  rd.readAsDataURL(f);
+}
+function clearLogo(){logoUrl='';syncLogos();if(autoSave)saveDataToStorage();saveLogos(ok=>showToast(ok?'🗑️ Logo page d\'accueil effacé':'❌ Échec de synchronisation de la suppression'));}
+function uploadNavLogo(input){
+  const f=input.files[0];if(!f)return;
+  if(f.size>LOGO_MAX_BYTES){showToast('⚠️ Image trop lourde (max 5 Mo) — elle risque de ne pas se synchroniser entre appareils');input.value='';return;}
+  const rd=new FileReader();
+  rd.onload=e=>{
+    logoNavUrl=e.target.result;syncLogos();if(autoSave)saveDataToStorage();
+    showToast('⏳ Logo en cours de synchronisation...');
+    syncLogoField('nav',logoNavUrl,f,'Logo navigation');
+  };
+  rd.readAsDataURL(f);
+}
+function clearNavLogo(){logoNavUrl='';syncLogos();if(autoSave)saveDataToStorage();saveLogos(ok=>showToast(ok?'🗑️ Logo navigation effacé':'❌ Échec de synchronisation de la suppression'));}
 function syncLogos(){
 const heroL=logoUrl;const navL=logoNavUrl||logoUrl;
 [['hLogoImg','hLogoFb',heroL],['lpImg','lpFb',heroL],['lpNavImg','lpNavFb',navL],['nLi2','nLf2',navL],['nLi3','nLf3',navL],['nLi4','nLf4',navL],['nLi5','nLf5',navL],['aLi','aLf',navL],['alLi','alLf',navL]].forEach(([ii,fi,url])=>{const img=document.getElementById(ii);const fb=document.getElementById(fi);if(!img)return;if(url){img.src=url;img.style.display='block';if(fb)fb.style.display='none';}else{img.src='';img.style.display='none';if(fb)fb.style.display='block';}});
@@ -561,45 +638,146 @@ const heroL=logoUrl;const navL=logoNavUrl||logoUrl;
 function saveIdentity(){libName=document.getElementById('s-name').value||'Librairie Rayen';libTag=document.getElementById('s-tag').value;libTel=document.getElementById('s-tel').value;libMF=document.getElementById('s-mf').value;libAddr=document.getElementById('s-addr').value;[['hName',libName],['nN2',libName],['nN3',libName],['nN4',libName],['nN5',libName],['aN',libName],['alN',libName]].forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=v;});document.getElementById('hTag').textContent=libTag;document.title=libName;if(autoSave)saveDataToStorage();showToast('✅ Identité sauvegardée');}
 function saveTexts(){heroSubTxt=document.getElementById('s-hsub').value;deliveryFee=parseFloat(document.getElementById('s-del').value)||3;deliveryNote=document.getElementById('s-dnote').value;document.getElementById('heroSub').textContent=heroSubTxt;if(autoSave)saveDataToStorage();showToast('✅ Sauvegardé');}
 function saveCreds(){const u=document.getElementById('s-usr').value.trim();const p=document.getElementById('s-pw').value;const p2=document.getElementById('s-pw2').value;if(!u){showToast('⚠️ Identifiant requis');return;}if(p&&p!==p2){showToast('⚠️ Mots de passe différents');return;}adminUser=u;if(p)adminPass=p;if(autoSave)saveDataToStorage();document.getElementById('s-pw').value='';document.getElementById('s-pw2').value='';showToast('✅ Identifiants mis à jour');}
-function renderSchoolTags(){document.getElementById('schoolTags').innerHTML=Object.keys(schoolLevels).map((s,i)=>`<span class="tag">${s} <span class="xt" onclick="removeSchool(${i})">✕</span></span>`).join('');buildSchoolOpts();buildAdmSchOpts();const sfl=document.getElementById('schoolForLv');const cur=sfl.value;sfl.innerHTML='<option value="">— Sélectionner école —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sfl.appendChild(o);});sfl.value=cur;}
+function renderSchoolTags(){document.getElementById('schoolTags').innerHTML=Object.keys(schoolLevels).map((s,i)=>`<span class="tag">${s} <span class="xt" onclick="renameSchool(${i})" title="Renommer" style="margin-right:4px">✏️</span><span class="xt" onclick="removeSchool(${i})">✕</span></span>`).join('');buildSchoolOpts();buildAdmSchOpts();const sfl=document.getElementById('schoolForLv');const cur=sfl.value;sfl.innerHTML='<option value="">— Sélectionner école —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sfl.appendChild(o);});sfl.value=cur;}
 function addSchool(){const v=document.getElementById('newSchool').value.trim();if(!v||v in schoolLevels)return;schoolLevels[v]=[];if(autoSave)saveDataToStorage();renderSchoolTags();document.getElementById('newSchool').value='';showToast('✅ École ajoutée');}
 function removeSchool(i){const k=Object.keys(schoolLevels);delete schoolLevels[k[i]];if(autoSave)saveDataToStorage();renderSchoolTags();renderLvTags();}
+function renameSchool(i){
+  const keys=Object.keys(schoolLevels);
+  const oldName=keys[i];if(!oldName)return;
+  const newName=prompt('Nouveau nom pour "'+oldName+'" :',oldName);
+  if(newName===null)return;
+  const clean=newName.trim();
+  if(!clean||clean===oldName)return;
+  if(schoolLevels[clean]){showToast('⚠️ Une école porte déjà ce nom');return;}
+  schoolLevels[clean]=schoolLevels[oldName];
+  delete schoolLevels[oldName];
+  // Move every book list tied to this school (all its levels) to the new name — nothing is lost
+  Object.keys(booksDB).forEach(key=>{
+    if(key.startsWith(oldName+'|')){
+      const level=key.slice(oldName.length+1);
+      booksDB[gk(clean,level)]=booksDB[key];
+      delete booksDB[key];
+    }
+  });
+  if(filtSchool===oldName)filtSchool=clean;
+  if(autoSave)saveDataToStorage();
+  renderSchoolTags();
+  showToast('✅ École renommée : "'+oldName+'" → "'+clean+'"');
+}
 function renderLvTags(){const school=document.getElementById('schoolForLv').value;const c=document.getElementById('levelTags');if(!school){c.innerHTML='';return;}c.innerHTML=(schoolLevels[school]||[]).map((lv,i)=>{const e=getEtablissement(lv);const col=etabColor(e);const badge=e?`<span style="font-size:.6rem;background:${col.bg};color:${col.tx};border-radius:3px;padding:0 5px;margin-left:4px;font-weight:700">${e}</span>`:'';return`<span class="tag lv">${lv}${badge} <span class="xt" onclick="removeLv('${school}',${i})">✕</span></span>`;}).join('');onSchoolChange();}
 function addLevel(){const school=document.getElementById('schoolForLv').value;const v=document.getElementById('newLv').value.trim();if(!school||!v)return;if(!schoolLevels[school])schoolLevels[school]=[];if(!schoolLevels[school].includes(v))schoolLevels[school].push(v);if(autoSave)saveDataToStorage();renderLvTags();document.getElementById('newLv').value='';showToast('✅ Niveau ajouté');}
 function removeLv(school,i){if(schoolLevels[school])schoolLevels[school].splice(i,1);if(autoSave)saveDataToStorage();renderLvTags();}
 function buildAdmSchOpts(){const sel=document.getElementById('edSch');const cur=sel.value;sel.innerHTML='<option value="">— École —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});sel.value=cur;}
 function updEdLv(){const school=document.getElementById('edSch').value;const ls=document.getElementById('edLv');ls.innerHTML='<option value="">— Niveau —</option>';if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{const o=document.createElement('option');o.value=lv;o.textContent=lv;ls.appendChild(o);});document.getElementById('bookEdArea').style.display='none';}
-function renderBookEd(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const area=document.getElementById('bookEdArea');if(!school||!lv){area.style.display='none';return;}area.style.display='block';const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];document.getElementById('bookRows').innerHTML=booksDB[key].map((b,i)=>`<div class="bed-row" id="bedr-${i}"><input class="bed-inp" value="${b.title}" id="bt-${i}" placeholder="Titre"><input class="bed-inp" value="${b.ean||''}" id="be-${i}" placeholder="EAN-13" maxlength="13"><input class="bed-inp" value="${b.subject}" id="bs-${i}" placeholder="Matière"><input class="bed-inp" type="number" step="0.5" value="${b.priceHT.toFixed(3)}" id="bp-${i}"><div id="bth-${i}" style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:${b.color};display:flex;align-items:center;justify-content:center;font-size:.85rem;cursor:pointer;flex-shrink:0" onclick="document.getElementById('bfi-${i}').click()" title="Photo de couverture">${b.img?`<img src="${b.img}" style="width:100%;height:100%;object-fit:cover">`:'📖'}</div><input type="file" id="bfi-${i}" accept="image/*" style="display:none" onchange="uplBkImg(this,${i})"><button class="del-btn" onclick="delBkRow(${i})">✕</button></div>`).join('');}
+function findBookByEan(ean,excludeKey,excludeIndex){
+  if(!ean)return null;
+  for(const key in booksDB){
+    const idx=booksDB[key].findIndex(b=>b.ean&&b.ean===ean);
+    if(idx<0)continue;
+    if(key===excludeKey&&idx===excludeIndex)continue;
+    return booksDB[key][idx];
+  }
+  return null;
+}
+function onEanInput(inp,i){
+  const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;
+  const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;
+  const ean=inp.value.trim();
+  booksDB[key][i].ean=ean;
+  if(!ean)return;
+  const match=findBookByEan(ean,key,i);
+  if(!match)return;
+  const b=booksDB[key][i];
+  const pi=document.getElementById('bp-'+i);if(pi)pi.value=match.priceHT.toFixed(3);
+  b.priceHT=match.priceHT;
+  const si=document.getElementById('bs-'+i);if(si)si.value=match.subject;
+  b.subject=match.subject;
+  const ti=document.getElementById('bt-'+i);if(ti&&(!ti.value||ti.value==='Nouveau livre'))ti.value=match.title;
+  if(!b.title||b.title==='Nouveau livre')b.title=match.title;
+  b.color=match.color||b.color;
+  if(match.img){
+    b.img=match.img;
+    const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${match.img}" style="width:100%;height:100%;object-fit:cover">`;
+    idbSave(b.id,match.img);_imgCache[b.id]=match.img;
+    if(fbDb)fbDb.ref('librairie/bookImages/'+b.id).set(match.img).catch(()=>{});
+  }
+  showToast('✅ Livre reconnu par EAN — prix, photo et matière copiés automatiquement');
+}
+function renderBookEd(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const area=document.getElementById('bookEdArea');if(!school||!lv){area.style.display='none';return;}area.style.display='block';const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];document.getElementById('bookRows').innerHTML=booksDB[key].map((b,i)=>`<div class="bed-row" id="bedr-${i}"><input class="bed-inp" value="${b.title}" id="bt-${i}" placeholder="Titre"><input class="bed-inp" value="${b.ean||''}" id="be-${i}" placeholder="EAN-13" maxlength="13" onchange="onEanInput(this,${i})"><input class="bed-inp" value="${b.subject}" id="bs-${i}" placeholder="Matière"><input class="bed-inp" type="number" step="0.5" value="${b.priceHT.toFixed(3)}" id="bp-${i}"><div id="bth-${i}" style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:${b.color};display:flex;align-items:center;justify-content:center;font-size:.85rem;cursor:pointer;flex-shrink:0" onclick="document.getElementById('bfi-${i}').click()" title="Photo de couverture">${b.img?`<img src="${b.img}" style="width:100%;height:100%;object-fit:cover">`:'📖'}</div><input type="file" id="bfi-${i}" accept="image/*" style="display:none" onchange="uplBkImg(this,${i})"><button class="del-btn" onclick="delBkRow(${i})">✕</button></div>`).join('');booksDB[key].forEach((b,i)=>lazyLoadEditorThumb(b,i));}
+function lazyLoadEditorThumb(b,i){
+  if(b.img)return;
+  if(_imgCache[b.id]){b.img=_imgCache[b.id];const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${b.img}" style="width:100%;height:100%;object-fit:cover">`;return;}
+  if(!fbDb)return;
+  fbDb.ref('librairie/bookImages/'+b.id).once('value').then(snap=>{
+    const img=snap.val();if(!img)return;
+    b.img=img;_imgCache[b.id]=img;idbSave(b.id,img);
+    const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`;
+  }).catch(()=>{});
+}
 function compressImg(dataUrl,maxW,maxH,quality,cb){const img=new Image();img.onload=()=>{let sx=0,sy=0,sw=img.width,sh=img.height;if(autoAdjustImg){const targetRatio=maxW/maxH;const imgRatio=img.width/img.height;if(imgRatio>targetRatio){sw=Math.round(img.height*targetRatio);sx=Math.round((img.width-sw)/2);}else{sh=Math.round(img.width/targetRatio);sy=Math.round((img.height-sh)/2);}const c=document.createElement('canvas');c.width=maxW;c.height=maxH;c.getContext('2d').drawImage(img,sx,sy,sw,sh,0,0,maxW,maxH);cb(c.toDataURL('image/jpeg',quality));}else{const scale=Math.min(1,maxW/img.width,maxH/img.height);const w=Math.round(img.width*scale);const h=Math.round(img.height*scale);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',quality));}};img.src=dataUrl;}
-function uplBkImg(input,i){const f=input.files[0];if(!f)return;const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;const book=booksDB[key][i];const bookId=book.id;showToast('⏳ Upload en cours...');const rd=new FileReader();rd.onload=e=>{compressImg(e.target.result,300,400,0.70,compressed=>{book.img=compressed;const entries=bookImageUtils.buildBookImageEntries(book, compressed);Object.entries(entries).forEach(([k,v])=>{_imgCache[k]=v;idbSave(k,v);});const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${compressed}" style="width:100%;height:100%;object-fit:cover">`;if(fbDb){const uploadPayload={};Object.entries(entries).forEach(([k,v])=>{uploadPayload[k]=v;});fbDb.ref('librairie/bookImages').update(uploadPayload).then(()=>{showToast('✅ Photo synchronisée sur tous les PCs');}).catch(()=>{showToast('✅ Photo sauvegardée dans IndexedDB');});}else{showToast('✅ Couverture mise à jour');}if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}});};rd.readAsDataURL(f);}
+function propagateBookByEan(sourceBook){
+  if(!sourceBook.ean)return;
+  let touchedCurrentList=false;
+  for(const k in booksDB){
+    booksDB[k].forEach(b=>{
+      if(b.id===sourceBook.id||b.ean!==sourceBook.ean)return;
+      b.title=sourceBook.title;b.subject=sourceBook.subject;b.priceHT=sourceBook.priceHT;b.color=sourceBook.color||b.color;
+      if(sourceBook.img){
+        b.img=sourceBook.img;
+        idbSave(b.id,sourceBook.img);_imgCache[b.id]=sourceBook.img;
+        if(fbDb)fbDb.ref('librairie/bookImages/'+b.id).set(sourceBook.img).catch(()=>{});
+      }
+      if(filtSchool&&filtLv&&k===gk(filtSchool,filtLv))touchedCurrentList=true;
+    });
+  }
+  if(touchedCurrentList){_books=booksDB[gk(filtSchool,filtLv)]||[];renderGrid(_books);updateCart();}
+}
+function uplBkImg(input,i){const f=input.files[0];if(!f)return;const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;const bookId=booksDB[key][i].id;showToast('⏳ Upload en cours...');const rd=new FileReader();rd.onload=e=>{compressImg(e.target.result,300,400,0.70,compressed=>{
+  booksDB[key][i].img=compressed;_imgCache[bookId]=compressed;
+  const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${compressed}" style="width:100%;height:100%;object-fit:cover">`;
+  idbSave(bookId,compressed);
+  propagateBookByEan(booksDB[key][i]);
+  if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}
+  const fallbackToRTDB=()=>{if(!fbDb){showToast('✅ Couverture mise à jour');return;}fbDb.ref('librairie/bookImages/'+bookId).set(compressed).then(()=>showToast('✅ Photo synchronisée sur toutes les listes et tous les PCs')).catch(()=>showToast('✅ Photo sauvegardée dans IndexedDB'));};
+  if(fbStorage&&fbDb){
+    fetch(compressed).then(r=>r.blob())
+      .then(blob=>fbStorage.ref('bookImages/'+bookId+'.jpg').put(blob))
+      .then(snap=>snap.ref.getDownloadURL())
+      .then(url=>fbDb.ref('librairie/bookImages/'+bookId).set(url))
+      .then(()=>{showToast('✅ Photo synchronisée (Firebase Storage) sur toutes les listes et tous les PCs');})
+      .catch(()=>{fallbackToRTDB();});
+  }else{
+    fallbackToRTDB();
+  }
+});};rd.readAsDataURL(f);}
 function addBookRow(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;if(!school||!lv)return;const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];const ean='978997'+(Math.floor(Math.random()*9000000)+1000000);booksDB[key].push({id:Date.now(),title:'Nouveau livre',ean:ean,subject:'Matière',priceHT:8.000,color:CLRS[Math.floor(Math.random()*CLRS.length)],img:''});renderBookEd();}
 function delBkRow(i){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(booksDB[key])booksDB[key].splice(i,1);renderBookEd();}
-function saveBooks(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!key||!booksDB[key])return;booksDB[key].forEach((b,i)=>{const ti=document.getElementById('bt-'+i),ei=document.getElementById('be-'+i),si=document.getElementById('bs-'+i),pi=document.getElementById('bp-'+i);if(ti)b.title=ti.value;if(ei)b.ean=ei.value;if(si)b.subject=si.value;if(pi)b.priceHT=parseFloat(pi.value)||0;});if(autoSave)saveDataToStorage();if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);updateCart();}showToast('✅ Livres sauvegardés — '+school+' · '+lv);}
+function saveBooks(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!key||!booksDB[key])return;booksDB[key].forEach((b,i)=>{const ti=document.getElementById('bt-'+i),ei=document.getElementById('be-'+i),si=document.getElementById('bs-'+i),pi=document.getElementById('bp-'+i);if(ti)b.title=ti.value;if(ei)b.ean=ei.value;if(si)b.subject=si.value;if(pi)b.priceHT=parseFloat(pi.value)||0;if(b.ean)propagateBookByEan(b);});if(autoSave)saveDataToStorage();if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);updateCart();}showToast('✅ Livres sauvegardés et synchronisés (même EAN) — '+school+' · '+lv);}
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('vis');setTimeout(()=>el.classList.remove('vis'),2600);}
 function saveImgsLocally(){Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(b.img)_imgCache[b.id]=b.img;});});Object.keys(_imgCache).forEach(id=>{idbSave(id,_imgCache[id]);try{localStorage.removeItem('librairie_img_'+id);}catch(e){}});try{localStorage.removeItem('librairie_rayen_imgs');}catch(e){}}
-function syncBookImagesByEan(){const byEan={};Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(!b.ean)return;const eanKey=bookImageUtils.normalizeBookImageKey(b.ean);const img=bookImageUtils.resolveBookImage(_imgCache,b);if(img){byEan[eanKey]=img;}});});Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(!b.ean)return;const eanKey=bookImageUtils.normalizeBookImageKey(b.ean);const img=byEan[eanKey];if(img){b.img=img;if(b.id!==undefined&&b.id!==null&&b.id!=='')_imgCache[String(b.id)]=img;_imgCache[eanKey]=img;}});});}
-function loadImgsIntoBooks(){try{localStorage.removeItem('librairie_rayen_imgs');}catch(e){}Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{const img=bookImageUtils.resolveBookImage(_imgCache,b);if(img)b.img=img;});});syncBookImagesByEan();}
-async function loadImgsFromIDB(){try{const all=await idbLoadAll();Object.assign(_imgCache,all);Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{const img=bookImageUtils.resolveBookImage(_imgCache,b);if(img)b.img=img;});});syncBookImagesByEan();if(filtSchool&&filtLv){_books=booksDB[gk(filtSchool,filtLv)]||[];if(_books.length)renderGrid(_books);}}catch(e){}}
+function loadImgsIntoBooks(){try{localStorage.removeItem('librairie_rayen_imgs');}catch(e){}Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(_imgCache[b.id])b.img=_imgCache[b.id];});});}
+async function loadImgsFromIDB(){try{const all=await idbLoadAll();Object.assign(_imgCache,all);Object.keys(booksDB).forEach(key=>{booksDB[key].forEach(b=>{if(_imgCache[b.id])b.img=_imgCache[b.id];});});if(filtSchool&&filtLv){_books=booksDB[gk(filtSchool,filtLv)]||[];if(_books.length)renderGrid(_books);}}catch(e){}}
 function saveDataToStorage(){
   saveImgsLocally();
   const booksDBNoImg={};Object.keys(booksDB).forEach(k=>{booksDBNoImg[k]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject,priceHT:b.priceHT,color:b.color}));});
-  const data={orders,reservations,schoolLevels,booksDB:booksDBNoImg,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,autoSave,adminUser,adminPass,heroSubTxt,deliveryNote};
+  const data={orders,reservations,schoolLevels,booksDB:booksDBNoImg,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,autoSave,adminUser,adminPass,heroSubTxt,deliveryNote,orderEnabled,remiseEnabled,acompteEnabled,avanceException,livraisonEnabled,acompteDefaultAmt};
   try{localStorage.setItem('librairie_rayen_db',JSON.stringify(data));}catch(e){console.error('❌ Erreur localStorage:',e);showToast('⚠️ Erreur sauvegarde : '+e.message);}
   if(fbDb){
     const booksLight={};Object.keys(booksDB).forEach(k=>{booksLight[k]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject,priceHT:b.priceHT,color:b.color}));});
-    const cfg={schoolLevels,booksDB:booksLight,libName,libTag,libTel,libMF,libAddr,deliveryFee,deliveryNote,heroSubTxt,orderEnabled,adminUser,adminPass};
+    const cfg={schoolLevels,booksDB:booksLight,libName,libTag,libTel,libMF,libAddr,deliveryFee,deliveryNote,heroSubTxt,orderEnabled,adminUser,adminPass,remiseEnabled,acompteEnabled,avanceException,livraisonEnabled,acompteDefaultAmt};
     fbDb.ref('librairie/config').set(cfg).catch(e=>{console.error('❌ Erreur Firebase:',e);showToast('❌ Erreur Firebase: '+e.message);});
     const ordMap={};orders.forEach((o,i)=>ordMap['o'+i]=o);fbDb.ref('librairie/orders').set(orders.length?ordMap:null).catch(()=>{});
     const resMap={};reservations.forEach((r,i)=>resMap['r'+i]=r);fbDb.ref('librairie/reservations').set(reservations.length?resMap:null).catch(()=>{});
   }
 }
-function loadDataFromStorage(){try{const stored=localStorage.getItem('librairie_rayen_db');if(!stored)return;const data=JSON.parse(stored);if(data.orders)orders=data.orders;if(data.reservations)reservations=data.reservations;if(data.schoolLevels)schoolLevels=data.schoolLevels;if(data.booksDB){booksDB=data.booksDB;loadImgsIntoBooks();}if(data.libName)libName=data.libName;if(data.libTag)libTag=data.libTag;if(data.libTel)libTel=data.libTel;if(data.libMF)libMF=data.libMF;if(data.libAddr)libAddr=data.libAddr;if(data.deliveryFee)deliveryFee=data.deliveryFee;if(data.remisePct)remisePct=data.remisePct;if(data.tvaPct)tvaPct=data.tvaPct;if(typeof data.autoSave!=='undefined')autoSave=!!data.autoSave;try{const cb=document.getElementById('autoSaveChk');if(cb)cb.checked=!!autoSave;}catch(e){}if(data.adminUser)adminUser=data.adminUser;if(data.adminPass)adminPass=data.adminPass;if(data.logoUrl&&!logoUrl){logoUrl=data.logoUrl;try{localStorage.setItem('librairie_logo',logoUrl);}catch(e){}setTimeout(()=>{if(fbDb&&logoUrl)fbDb.ref('librairie/logos/main').set(logoUrl).catch(()=>{});},3000);}if(data.logoNavUrl&&!logoNavUrl){logoNavUrl=data.logoNavUrl;try{localStorage.setItem('librairie_navlogo',logoNavUrl);}catch(e){}setTimeout(()=>{if(fbDb&&logoNavUrl)fbDb.ref('librairie/logos/nav').set(logoNavUrl).catch(()=>{});},3000);}if(data.heroSubTxt)heroSubTxt=data.heroSubTxt;if(data.deliveryNote)deliveryNote=data.deliveryNote;try{const hs=document.getElementById('heroSub');if(hs&&heroSubTxt)hs.textContent=heroSubTxt;}catch(e){}}catch(e){console.error('❌ Erreur chargement:',e);}}
+function loadDataFromStorage(){try{const stored=localStorage.getItem('librairie_rayen_db');if(!stored)return;const data=JSON.parse(stored);if(data.orders)orders=data.orders;if(data.reservations)reservations=data.reservations;if(data.schoolLevels)schoolLevels=data.schoolLevels;if(data.booksDB){booksDB=data.booksDB;loadImgsIntoBooks();}if(data.libName)libName=data.libName;if(data.libTag)libTag=data.libTag;if(data.libTel)libTel=data.libTel;if(data.libMF)libMF=data.libMF;if(data.libAddr)libAddr=data.libAddr;if(data.deliveryFee)deliveryFee=data.deliveryFee;if(data.remisePct)remisePct=data.remisePct;if(data.tvaPct)tvaPct=data.tvaPct;if(typeof data.autoSave!=='undefined')autoSave=!!data.autoSave;try{const cb=document.getElementById('autoSaveChk');if(cb)cb.checked=!!autoSave;}catch(e){}if(data.adminUser)adminUser=data.adminUser;if(data.adminPass)adminPass=data.adminPass;if(data.logoUrl&&!logoUrl){logoUrl=data.logoUrl;try{localStorage.setItem('librairie_logo',logoUrl);}catch(e){}setTimeout(()=>{if(fbDb&&logoUrl)fbDb.ref('librairie/logos/main').set(logoUrl).catch(()=>{});},3000);}if(data.logoNavUrl&&!logoNavUrl){logoNavUrl=data.logoNavUrl;try{localStorage.setItem('librairie_navlogo',logoNavUrl);}catch(e){}setTimeout(()=>{if(fbDb&&logoNavUrl)fbDb.ref('librairie/logos/nav').set(logoNavUrl).catch(()=>{});},3000);}if(data.heroSubTxt)heroSubTxt=data.heroSubTxt;if(data.deliveryNote)deliveryNote=data.deliveryNote;try{const hs=document.getElementById('heroSub');if(hs&&heroSubTxt)hs.textContent=heroSubTxt;}catch(e){}if(typeof data.orderEnabled!=='undefined')orderEnabled=!!data.orderEnabled;if(typeof data.remiseEnabled!=='undefined')remiseEnabled=!!data.remiseEnabled;if(typeof data.acompteEnabled!=='undefined')acompteEnabled=!!data.acompteEnabled;if(typeof data.avanceException!=='undefined')avanceException=!!data.avanceException;if(typeof data.livraisonEnabled!=='undefined')livraisonEnabled=!!data.livraisonEnabled;if(data.acompteDefaultAmt!==undefined)acompteDefaultAmt=data.acompteDefaultAmt;}catch(e){console.error('❌ Erreur chargement:',e);}}
 function clearAllData(){if(confirm('⚠️ Êtes-vous sûr(e) de vouloir effacer TOUTES les données ? Cette action est irréversible.')){localStorage.removeItem('librairie_rayen_db');orders=[];reservations=[];showToast('🗑️ Toutes les données ont été effacées');location.reload();}}
 function exportData(){const data={orders,reservations,schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,exportDate:new Date().toLocaleString('fr-FR')};const json=JSON.stringify(data,null,2);const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='librairie_rayen_backup_'+new Date().getTime()+'.json';a.click();URL.revokeObjectURL(url);showToast('📥 Données exportées en JSON');}
 function updateStorageInfo(){try{const stored=localStorage.getItem('librairie_rayen_db');const size=stored?((stored.length/1024).toFixed(2)+' KB'):'Aucune donnée';const recordCount='Commandes: '+orders.length+' | Réservations: '+reservations.length+' | Écoles: '+Object.keys(schoolLevels).length;document.getElementById('storageInfo').innerHTML=size+' — '+recordCount;}catch(e){}}
 function toggleAutoSave(v){autoSave=!!v;try{const cb=document.getElementById('autoSaveChk');if(cb)cb.checked=!!autoSave;}catch(e){}saveDataToStorage();updateStorageInfo();showToast(autoSave?'✅ Sauvegarde automatique activée':'🔕 Sauvegarde automatique désactivée');}
 loadDataFromStorage();loadLogos();openIDB().then(()=>loadImgsFromIDB()).catch(()=>{});
-try{const r=localStorage.getItem('librairie_remise');if(r!==null)remiseEnabled=(r==='1');setTimeout(applyRemiseBadge,100);}catch(e){}
+try{const r=localStorage.getItem('librairie_remise');if(r!==null)remiseEnabled=(r==='1');}catch(e){}
+setTimeout(()=>{applyRemiseBadge();applyAcompteBadge();applyLivraisonBadge();applyExceptionBadge();applyOrderModeUI();try{const ai=document.getElementById('acompteInp');if(ai)ai.value=acompteDefaultAmt||'';}catch(e){}},100);
 buildSchoolOpts();setLang('fr');
 try{syncLogos();updateStorageInfo();}catch(e){}
 setTimeout(()=>{try{syncLogos();}catch(e){}},1500);
