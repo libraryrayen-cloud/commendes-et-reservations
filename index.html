@@ -375,10 +375,10 @@
   </div>
   <div class="abody">
     <div class="tpanel on" id="tp-0"><div class="stats-row" id="statsRow"></div><div id="recentWrap"></div></div>
-    <div class="tpanel" id="tp-1"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead><tbody id="ordBody"></tbody></table></div></div>
-    <div class="tpanel" id="tp-2"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead><tbody id="resvBody"></tbody></table></div></div>
-    <div class="tpanel" id="tp-3"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>Commandes</th><th>Dépensé</th><th>Dernière</th></tr></thead><tbody id="cliBody"></tbody></table></div></div>
-    <div class="tpanel" id="tp-4"><div class="sec-h">🧾 <span data-t="receipts-list">Tous les reçus</span></div><div class="twrap" id="recWrap"></div></div>
+    <div class="tpanel" id="tp-1"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead><tbody id="ordBody"></tbody></table></div><div id="ordMore" style="text-align:center;margin-top:10px"></div></div>
+    <div class="tpanel" id="tp-2"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>École</th><th>Niveau</th><th>Qté</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead><tbody id="resvBody"></tbody></table></div><div id="resvMore" style="text-align:center;margin-top:10px"></div></div>
+    <div class="tpanel" id="tp-3"><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Tél</th><th>Adresse</th><th>Commandes</th><th>Dépensé</th><th>Dernière</th></tr></thead><tbody id="cliBody"></tbody></table></div><div id="cliMore" style="text-align:center;margin-top:10px"></div></div>
+    <div class="tpanel" id="tp-4"><div class="sec-h">🧾 <span data-t="receipts-list">Tous les reçus</span></div><div class="twrap" id="recWrap"></div><div id="recMore" style="text-align:center;margin-top:10px"></div></div>
     <div class="tpanel" id="tp-5">
       <div class="set-grid">
         <!-- Identity -->
@@ -598,9 +598,18 @@
               <tbody id="fourResBody"></tbody>
             </table>
           </div>
-          <div style="margin-top:12px">
+          <div style="margin-top:12px;display:flex;gap:.7rem;flex-wrap:wrap">
             <button class="save-btn" style="background:var(--navy);color:white" onclick="dlFournisseurExcel()">📊 Télécharger Excel</button>
+            <button class="save-btn" style="background:var(--green);color:white" onclick="saveFournisseurHistory()">✅ Marquer comme envoyé au fournisseur</button>
           </div>
+        </div>
+        <div class="sec-h" style="margin-top:24px">🕓 Historique des envois fournisseur</div>
+        <div style="font-size:.8rem;color:var(--tx2);margin-bottom:10px">Retrouvez ici les envois précédents — les commandes/réservations déjà incluses dans un envoi apparaissent avec le badge « ✅ Envoyé » dans la liste ci-dessus.</div>
+        <div class="twrap">
+          <table class="dtable">
+            <thead><tr><th>Date d'envoi</th><th>Commandes/Résa.</th><th>Titres</th><th>Exemplaires</th><th>Actions</th></tr></thead>
+            <tbody id="fourHistBody"></tbody>
+          </table>
         </div>
       </div>
     </div>

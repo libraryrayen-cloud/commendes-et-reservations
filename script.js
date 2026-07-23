@@ -87,6 +87,12 @@ try {
       if(curAT===4)renderReceipts();
     }
   });
+  fbDb.ref('librairie/fournisseurHistory').on('value', snap => {
+    fournisseurHistory = snap.val() ? Object.values(snap.val()) : [];
+    try{const d=JSON.parse(localStorage.getItem('librairie_rayen_db')||'{}');d.fournisseurHistory=fournisseurHistory;localStorage.setItem('librairie_rayen_db',JSON.stringify(d));}catch(e){}
+    const adm = document.getElementById('adm-page');
+    if(adm && adm.classList.contains('active') && curAT===6){renderFournisseur();renderFournisseurHistory();}
+  });
   fbDb.ref('librairie/logos').on('value', snap => {
     const d=snap.val();if(!d)return;
     if(d.main)logoUrl=d.main;
@@ -121,7 +127,7 @@ let deliveryNote='3 à 5 jours ouvrables après confirmation de la réservation.
 let schoolLevels={'Lycée Carthage':['1ère Secondaire','2ème Secondaire','3ème Secondaire','Terminale Bac'],'Lycée Ibn Khaldoun':['7ème de base','8ème de base','9ème de base','1ère Secondaire','Terminale Bac'],'École Ariana Centre':['1ère Primaire','2ème Primaire','3ème Primaire','4ème Primaire','5ème Primaire','6ème Primaire'],'Collège Médina':['7ème de base','8ème de base','9ème de base'],'Lycée Bourguiba':['1ère Secondaire','2ème Secondaire','Terminale Bac'],'École El Menzah':['1ère Primaire','2ème Primaire','3ème Primaire','4ème Primaire','5ème Primaire','6ème Primaire']};
 const CLRS=['#1B2B4B','#E8601C','#00A878','#2E4270','#C94E14','#007F5C','#243656','#4A5568'];
 let booksDB={'Lycée Carthage|Terminale Bac':[{id:201,title:'Mathématiques Terminale',ean:'9789973060015',subject:'Maths',priceHT:11.765,color:CLRS[0],img:''},{id:202,title:'Physique-Chimie Terminale',ean:'9789973060022',subject:'Physique',priceHT:11.345,color:CLRS[1],img:''},{id:203,title:'SVT Terminale',ean:'9789973060039',subject:'SVT',priceHT:10.924,color:CLRS[2],img:''},{id:204,title:'Philosophie',ean:'9789973060046',subject:'Philo',priceHT:10.084,color:CLRS[3],img:''},{id:205,title:'Anglais Bac',ean:'9789973060053',subject:'Anglais',priceHT:10.504,color:CLRS[6],img:''}],'Lycée Carthage|1ère Secondaire':[{id:101,title:'Français 1ère',ean:'9789973070010',subject:'Français',priceHT:8.824,color:CLRS[0],img:''},{id:102,title:'Mathématiques 1ère',ean:'9789973070027',subject:'Maths',priceHT:8.403,color:CLRS[1],img:''},{id:103,title:'Physique-Chimie 1ère',ean:'9789973070034',subject:'Physique',priceHT:7.983,color:CLRS[2],img:''},{id:104,title:'SVT 1ère',ean:'9789973070041',subject:'SVT',priceHT:7.563,color:CLRS[3],img:''}],'Lycée Ibn Khaldoun|9ème de base':[{id:301,title:'Français 9ème',ean:'9789973080019',subject:'Français',priceHT:8.824,color:CLRS[0],img:''},{id:302,title:'Mathématiques 9ème',ean:'9789973080026',subject:'Maths',priceHT:8.403,color:CLRS[1],img:''},{id:303,title:'Physique-Chimie 9',ean:'9789973080033',subject:'Physique',priceHT:7.983,color:CLRS[5],img:''},{id:304,title:'SVT 9ème',ean:'9789973080040',subject:'SVT',priceHT:7.563,color:CLRS[2],img:''},{id:305,title:'Anglais 9ème',ean:'9789973080057',subject:'Anglais',priceHT:7.983,color:CLRS[6],img:''},{id:306,title:'اللغة العربية التاسعة',ean:'9789973080064',subject:'Arabe',priceHT:8.403,color:CLRS[3],img:''}],'École Ariana Centre|1ère Primaire':[{id:401,title:'Mon Premier Livre de Lecture',ean:'9789973090010',subject:'Français',priceHT:6.303,color:CLRS[0],img:''},{id:402,title:'Mathématiques 1',ean:'9789973090027',subject:'Maths',priceHT:5.042,color:CLRS[1],img:''},{id:403,title:'كتابي في اللغة العربية',ean:'9789973090034',subject:'Arabe',priceHT:5.882,color:CLRS[2],img:''},{id:404,title:"J'Explore le Monde",ean:'9789973090041',subject:'Éveil',priceHT:4.622,color:CLRS[3],img:''}],'École Ariana Centre|3ème Primaire':[{id:501,title:'Grammaire et Conjugaison 3',ean:'9789973100010',subject:'Français',priceHT:6.723,color:CLRS[0],img:''},{id:502,title:'Mathématiques 3',ean:'9789973100027',subject:'Maths',priceHT:5.882,color:CLRS[1],img:''},{id:503,title:'اللغة العربية - الثالثة',ean:'9789973100034',subject:'Arabe',priceHT:6.303,color:CLRS[2],img:''},{id:504,title:'Sciences Naturelles 3',ean:'9789973100041',subject:'Sciences',priceHT:5.462,color:CLRS[3],img:''}],'Collège Médina|7ème de base':[{id:701,title:'Français 7ème',ean:'9789973120015',subject:'Français',priceHT:7.983,color:CLRS[0],img:''},{id:702,title:'Mathématiques 7ème',ean:'9789973120022',subject:'Maths',priceHT:7.563,color:CLRS[1],img:''},{id:703,title:'Sciences 7ème',ean:'9789973120039',subject:'Sciences',priceHT:7.143,color:CLRS[2],img:''},{id:704,title:'Anglais 7ème',ean:'9789973120046',subject:'Anglais',priceHT:7.143,color:CLRS[6],img:''}]};
-let cart={};let curPay='visa';let orders=[],reservations=[];let filtSchool='',filtLv='';let lastOrder=null;let _books=[];let orderEnabled=true;let curResPay='cash';
+let cart={};let curPay='visa';let orders=[],reservations=[];let fournisseurHistory=[];let filtSchool='',filtLv='';let lastOrder=null;let _books=[];let orderEnabled=true;let curResPay='cash';
 const T={fr:{eyebrow:"Votre librairie scolaire de confiance",h1a:"Réservez",h1b:"vos livres",h1c:"depuis chez vous.",ctabtn:"Parcourir les livres",m1:"Livres disponibles",m2:"Écoles partenaires",m3:"Modes de paiement",back:"← Accueil",p2title:"Trouvez vos livres",searchph:"Rechercher — titre, matière, EAN...",schoollbl:"École",levellbl:"Niveau",search:"Rechercher",chooseschool:"— Choisir une école —",chooselevel:"— Choisir un niveau —",total:"Total :",butnres:"Réserver",butnord:"Commander",empty1:"Sélectionnez votre école et niveau",empty2:"Utilisez les filtres ci-dessus pour trouver les manuels.",backbooks:"← Retour",p3title:"Finaliser la commande",p3sub:"Vérifiez votre sélection, remplissez vos coordonnées et confirmez.",p4title:"Réserver mes livres",p4sub:"Laissez vos coordonnées pour confirmer la réservation.","dn-title":"Délai de disponibilité",yourinfo:"Vos informations",fullname:"Nom complet",phone:"Téléphone",emaill:"Email (optionnel)",addresslbl:"Adresse de livraison",paymethod:"Mode de paiement",holder:"TITULAIRE",cardnum:"Numéro de carte",expiry:"Expiration",edinarlbl:"Numéro E-Dinar",pinlbl:"Code PIN",cash:"Espèces","cash-title":"Paiement à la livraison","cash-sub":"Vos livres seront préparés et livrés. Vous payez en espèces à la réception.",ordersumm:"Récapitulatif",confirmpay:"Confirmer la commande →",confirmres:"Confirmer la réservation 📌",secured:"Sécurisé · Données protégées",delivery:"Livraison",adminlogin:"Accès Admin",adminloginsub:"Entrez vos identifiants.",signin:"Se connecter",backsite:"← Retour au site",signout:"Déconnexion →","tab-dash":"Tableau de bord","tab-res":"Commandes","tab-resv":"Réservations","tab-cli":"Clients","tab-rec":"Reçus","tab-set":"Paramètres","receipts-list":"Tous les reçus","success-title":"Confirmé","returnhome":"Retour à l'accueil","downloadpdf":"📄 Télécharger le reçu",clickupload:"Cliquer pour télécharger le logo","opt-cash":"Espèces (à la livraison)"},en:{eyebrow:"Your trusted school bookstore",h1a:"Reserve",h1b:"your books",h1c:"from home.",ctabtn:"Browse Books",m1:"Books available",m2:"Partner schools",m3:"Payment methods",back:"← Home",p2title:"Find Your Books",searchph:"Search — title, subject, EAN...",schoollbl:"School",levellbl:"Level",search:"Search",chooseschool:"— Choose school —",chooselevel:"— Choose level —",total:"Total:",butnres:"Reserve",butnord:"Order Now",empty1:"Select your school and level",empty2:"Use the filters above to find the required books.",backbooks:"← Back",p3title:"Complete Your Order",p3sub:"Review your selection, fill in details and confirm.",p4title:"Reserve my books",p4sub:"Enter your details to confirm the reservation.","dn-title":"Delivery timeline",yourinfo:"Your Information",fullname:"Full Name",phone:"Phone",emaill:"Email (optional)",addresslbl:"Delivery Address",paymethod:"Payment Method",holder:"CARDHOLDER",cardnum:"Card Number",expiry:"Expiry",edinarlbl:"E-Dinar Number",pinlbl:"PIN Code",cash:"Cash","cash-title":"Pay on Delivery","cash-sub":"Books are prepared and delivered. You pay cash on receipt.",ordersumm:"Order Summary",confirmpay:"Confirm Order →",confirmres:"Confirm Reservation 📌",secured:"SSL Secured · Data protected",delivery:"Delivery",adminlogin:"Admin Access",adminloginsub:"Enter your credentials.",signin:"Sign In",backsite:"← Back to site",signout:"Sign Out →","tab-dash":"Dashboard","tab-res":"Orders","tab-resv":"Reservations","tab-cli":"Clients","tab-rec":"Receipts","tab-set":"Settings","receipts-list":"All Receipts","success-title":"Confirmed","returnhome":"Return to Home","downloadpdf":"📄 Download Receipt",clickupload:"Click to upload logo","opt-cash":"Cash (on delivery)"}};
 const tr=k=>T[lang][k]||T.fr[k]||k;
 function setLang(l){lang=l;document.querySelectorAll('.lbtn').forEach(b=>b.classList.toggle('on',b.getAttribute('onclick').includes("'"+l+"'")));document.querySelectorAll('[data-t]').forEach(el=>{const k=el.getAttribute('data-t');(el.tagName==='INPUT'||el.tagName==='TEXTAREA')?el.placeholder=tr(k):el.textContent=tr(k);});document.querySelectorAll('[data-t-opt]').forEach(el=>el.textContent=tr(el.getAttribute('data-t-opt')));document.querySelectorAll('[data-t-ph]').forEach(el=>el.placeholder=tr(el.getAttribute('data-t-ph')));document.getElementById('heroSub').textContent=l==='en'?'Browse by school and level, select your books, and pay securely — from home.':'Parcourez par école et niveau, choisissez vos manuels, payez en toute sécurité — sans vous déplacer.';document.getElementById('p2sub').textContent=l==='en'?'Select your school and level to see the required books.':'Sélectionnez votre école et votre niveau pour voir la liste des manuels.';updateDeliveryNotice();const cb=document.getElementById('cbadge');if(cb){const n=cb.textContent.match(/\d+/)?.[0]||'0';cb.textContent=n+(l==='en'?' item(s)':' article(s)');}buildSchoolOpts();if(_books.length)renderGrid(_books);if(document.getElementById('orderSumm').innerHTML)renderOrderSumm();if(document.getElementById('resSumm').innerHTML)renderResSumm();}
@@ -492,6 +498,11 @@ function doExcelImport(){
   }catch(ex){alert('Erreur lors de l\'importation : '+ex.message);}
 }
 let _fourAgg=[];
+function fourSentKeys(){
+  const s=new Set();
+  fournisseurHistory.forEach(h=>(h.refs||[]).forEach(r=>s.add(r.type+'-'+r.id)));
+  return s;
+}
 function renderFournisseur(){
   const inclOrders=document.getElementById('fourInclOrders')&&document.getElementById('fourInclOrders').checked;
   const inclResvs=document.getElementById('fourInclResvs')&&document.getElementById('fourInclResvs').checked;
@@ -500,13 +511,15 @@ function renderFournisseur(){
   if(inclResvs)reservations.forEach(r=>rows.push({...r,_type:'Réservation'}));
   rows.sort((a,b)=>b.id-a.id);
   const tb=document.getElementById('fourBody');if(!tb)return;
+  const sentKeys=fourSentKeys();
   tb.innerHTML=rows.map(r=>{
     const nb=(r.items||[]).reduce((s,x)=>s+x.qty,0);
     const d=r.date?new Date(r.date).toLocaleDateString('fr-FR'):'—';
-    return `<tr>
+    const already=sentKeys.has(r._type+'-'+r.id);
+    return `<tr${already?' style="opacity:.6"':''}>
       <td><input type="checkbox" class="four-chk" data-id="${r.id}" data-type="${r._type}" onchange="fourUpdateCount()"></td>
       <td>#${r.id}</td>
-      <td><span style="background:${r._type==='Commande'?'var(--green)':'var(--orange)'};color:white;border-radius:4px;padding:1px 7px;font-size:.72rem">${r._type}</span></td>
+      <td><span style="background:${r._type==='Commande'?'var(--green)':'var(--orange)'};color:white;border-radius:4px;padding:1px 7px;font-size:.72rem">${r._type}</span>${already?' <span style="background:var(--tx3);color:white;border-radius:4px;padding:1px 6px;font-size:.68rem;margin-left:4px" title="Déjà incluse dans un envoi précédent au fournisseur">✅ Envoyé</span>':''}</td>
       <td>${r.name||'—'}</td>
       <td style="font-size:.78rem">${r.school||'—'} / ${r.level||'—'}</td>
       <td style="text-align:center;font-weight:700">${nb}</td>
@@ -527,6 +540,22 @@ function fourSelAll(v){
   document.querySelectorAll('.four-chk').forEach(c=>{c.checked=!!v;});
   fourUpdateCount();
 }
+let _fourRefs=[];
+function renderFourAggTable(extraLabel){
+  const tbody=document.getElementById('fourResBody');
+  if(!tbody)return;
+  const totalQty=_fourAgg.reduce((s,x)=>s+x.qty,0);
+  tbody.innerHTML=_fourAgg.map((r,i)=>`<tr>
+    <td style="color:var(--tx3)">${i+1}</td>
+    <td>${r.title}</td>
+    <td style="font-size:.78rem;color:var(--tx3)">${r.ean}</td>
+    <td style="text-align:right;font-weight:700;color:var(--orange)">${r.qty}</td>
+  </tr>`).join('');
+  const sumEl=document.getElementById('fourSummary');
+  if(sumEl)sumEl.textContent=_fourAgg.length+' titre(s) différent(s) · '+totalQty+' exemplaire(s) au total'+(extraLabel?' · '+extraLabel:'');
+  const res=document.getElementById('fourResult');
+  if(res){res.style.display='block';res.scrollIntoView({behavior:'smooth',block:'start'});}
+}
 function genFournisseurCmd(){
   const chks=[...document.querySelectorAll('.four-chk:checked')];
   if(!chks.length){alert('Veuillez sélectionner au moins une commande ou réservation.');return;}
@@ -543,19 +572,8 @@ function genFournisseurCmd(){
     });
   });
   _fourAgg=Object.values(agg).sort((a,b)=>a.title.localeCompare(b.title));
-  const tbody=document.getElementById('fourResBody');
-  if(!tbody)return;
-  const totalQty=_fourAgg.reduce((s,x)=>s+x.qty,0);
-  tbody.innerHTML=_fourAgg.map((r,i)=>`<tr>
-    <td style="color:var(--tx3)">${i+1}</td>
-    <td>${r.title}</td>
-    <td style="font-size:.78rem;color:var(--tx3)">${r.ean}</td>
-    <td style="text-align:right;font-weight:700;color:var(--orange)">${r.qty}</td>
-  </tr>`).join('');
-  const sumEl=document.getElementById('fourSummary');
-  if(sumEl)sumEl.textContent=_fourAgg.length+' titre(s) différent(s) · '+totalQty+' exemplaire(s) au total · depuis '+chks.length+' commande(s)/réservation(s)';
-  const res=document.getElementById('fourResult');
-  if(res){res.style.display='block';res.scrollIntoView({behavior:'smooth',block:'start'});}
+  _fourRefs=chks.map(c=>({id:+c.dataset.id,type:c.dataset.type}));
+  renderFourAggTable('depuis '+chks.length+' commande(s)/réservation(s)');
 }
 function dlFournisseurExcel(){
   if(!_fourAgg||!_fourAgg.length){alert('Générez d\'abord la commande.');return;}
@@ -571,20 +589,84 @@ function dlFournisseurExcel(){
   XLSX.writeFile(wb,'commande-fournisseur-'+new Date().toISOString().slice(0,10)+'.xlsx');
   showToast('📊 Excel téléchargé');
 }
-function aTab(i){curAT=i;document.querySelectorAll('.atab').forEach((t,j)=>t.classList.toggle('on',j===i));document.querySelectorAll('.tpanel').forEach((p,j)=>p.classList.toggle('on',j===i));if(i===0)renderDash();if(i===1)renderOrders();if(i===2)renderResvs();if(i===3)renderClients();if(i===4)renderReceipts();if(i===5)updateStorageInfo();if(i===6)renderFournisseur();}
+function saveFournisseurHistory(){
+  if(!_fourAgg||!_fourAgg.length){alert('Générez d\'abord la commande.');return;}
+  if(!_fourRefs.length){alert('Aucune commande/réservation associée à cet envoi.');return;}
+  fournisseurHistory.unshift({
+    id:Date.now(),
+    date:new Date().toISOString(),
+    items:_fourAgg,
+    refs:_fourRefs
+  });
+  saveDataToStorage();
+  renderFournisseur();
+  renderFournisseurHistory();
+  showToast('✅ Envoi enregistré dans l\'historique');
+}
+function renderFournisseurHistory(){
+  const tb=document.getElementById('fourHistBody');
+  if(!tb)return;
+  if(!fournisseurHistory.length){
+    tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--tx3);padding:14px">Aucun envoi enregistré pour le moment.</td></tr>';
+    return;
+  }
+  tb.innerHTML=fournisseurHistory.map(h=>{
+    const d=new Date(h.date).toLocaleString('fr-FR');
+    const totalQty=(h.items||[]).reduce((s,x)=>s+x.qty,0);
+    return `<tr>
+      <td style="font-size:.78rem">${d}</td>
+      <td style="text-align:center">${(h.refs||[]).length}</td>
+      <td style="text-align:center">${(h.items||[]).length}</td>
+      <td style="text-align:center;font-weight:700;color:var(--orange)">${totalQty}</td>
+      <td style="display:flex;gap:6px">
+        <button class="del-row-btn" onclick="viewFournisseurHistoryEntry(${h.id})" title="Voir le détail">👁️</button>
+        <button class="del-row-btn" onclick="deleteFournisseurHistoryEntry(${h.id})" title="Supprimer">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function viewFournisseurHistoryEntry(id){
+  const h=fournisseurHistory.find(x=>x.id===id);
+  if(!h)return;
+  _fourAgg=h.items||[];
+  _fourRefs=h.refs||[];
+  renderFourAggTable('envoi du '+new Date(h.date).toLocaleString('fr-FR'));
+}
+function deleteFournisseurHistoryEntry(id){
+  if(!confirm('Supprimer cet envoi de l\'historique ?'))return;
+  fournisseurHistory=fournisseurHistory.filter(h=>h.id!==id);
+  saveDataToStorage();
+  renderFournisseur();
+  renderFournisseurHistory();
+  showToast('🗑️ Envoi supprimé de l\'historique');
+}
+function aTab(i){curAT=i;document.querySelectorAll('.atab').forEach((t,j)=>t.classList.toggle('on',j===i));document.querySelectorAll('.tpanel').forEach((p,j)=>p.classList.toggle('on',j===i));if(i===0)renderDash();if(i===1)renderOrders();if(i===2)renderResvs();if(i===3)renderClients();if(i===4)renderReceipts();if(i===5)updateStorageInfo();if(i===6){renderFournisseur();renderFournisseurHistory();}}
 function toggleDelivery(id){const o=orders.find(r=>String(r.id)===String(id));if(!o)return;o.delivered=!o.delivered;saveDataToStorage();renderOrders();showToast(o.delivered?'📦 Marquée comme livrée':'🕐 Marquée comme non livrée');}
 function buildRow(r){const pc=r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':r.payment==='Espèces'?'bcash':'bres';const sc=r.status==='Confirmée'?'bok':'bpend';const dlvBtn=r.delivered?`<button class="del-row-btn" style="background:#20cf9e;border-color:#20cf9e;min-width:80px" onclick="toggleDelivery(${r.id})" title="Cliquer pour marquer non livrée">📦 Livré</button>`:`<button class="del-row-btn" style="background:#718096;border-color:#718096;min-width:80px" onclick="toggleDelivery(${r.id})" title="Cliquer pour marquer livrée">🕐 En cours</button>`;return`<tr style="${r.delivered?'opacity:.7':''}"><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td>${r.address!==undefined?`<td style="font-size:.76rem;max-width:100px">${r.address}</td>`:''}<td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge ${pc}">${r.payment}</span></td><td><span class="badge ${sc}">${r.status}</span></td><td>${r.date}</td><td style="display:flex;gap:4px">${dlvBtn}<button class="del-row-btn" onclick="deleteOrder(${r.id})" title="Supprimer">🗑️</button></td></tr>`;}
 function deleteOrder(id){if(!confirm('Supprimer cette commande ?'))return;orders=orders.filter(o=>String(o.id)!==String(id));saveDataToStorage();renderOrders();renderDash();showToast('🗑️ Commande supprimée');}
 function deleteReservation(id){if(!confirm('Supprimer cette réservation ?'))return;reservations=reservations.filter(r=>String(r.id)!==String(id));saveDataToStorage();renderResvs();renderDash();showToast('🗑️ Réservation supprimée');}
 function renderDash(){const allRec=[...orders,...reservations];const rev=orders.reduce((s,r)=>s+r.total,0);const avances=reservations.reduce((s,r)=>s+(r.acompteAmt||0),0);const bks=allRec.reduce((s,r)=>s+r.totalQty,0);const uni=[...new Set(allRec.map(r=>r.phone))].length;document.getElementById('statsRow').innerHTML=`<div class="scard"><div class="scard-ico">📋</div><div class="scard-val">${orders.length}</div><div class="scard-lbl">Commandes</div></div><div class="scard"><div class="scard-ico">📌</div><div class="scard-val">${reservations.length}</div><div class="scard-lbl">Réservations</div></div><div class="scard"><div class="scard-ico">💰</div><div class="scard-val hi">${(rev+avances).toFixed(3)}</div><div class="scard-lbl">Revenu (DT)</div></div><div class="scard"><div class="scard-ico">👥</div><div class="scard-val">${uni}</div><div class="scard-lbl">Clients</div></div><div class="scard"><div class="scard-ico">📚</div><div class="scard-val">${bks}</div><div class="scard-lbl">Livres réservés</div></div>`;document.getElementById('recentWrap').innerHTML=`<div class="sec-h" style="margin-top:1.25rem">📋 Activité récente</div><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Type</th><th>École</th><th>Total</th><th>Statut</th><th>Date</th></tr></thead><tbody>${[...orders,...reservations].slice(-6).reverse().map(r=>`<tr><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td><span class="badge ${r.type==='order'?'bvis':'bres'}">${r.type==='order'?'Commande':'Réservation'}</span></td><td>${r.school}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge ${r.status==='Confirmée'?'bok':'bpend'}">${r.status}</span></td><td>${r.date}</td></tr>`).join('')}</tbody></table></div>`;}
-function renderOrders(){document.getElementById('ordBody').innerHTML=orders.slice().reverse().map(r=>buildRow(r)).join('');}
+const ADMIN_PAGE_LIMIT=150;
+let _showAllOrders=false,_showAllResvs=false,_showAllClients=false,_showAllReceipts=false;
+function renderMoreToggle(elId,total,showAll,setter,label){
+  const el=document.getElementById(elId);if(!el)return;
+  if(total<=ADMIN_PAGE_LIMIT){el.innerHTML='';return;}
+  el.innerHTML=showAll
+    ? `<button class="save-btn" style="background:var(--tx3)" onclick="${setter}(false)">▲ Afficher moins</button>`
+    : `<button class="save-btn" style="background:var(--navy);color:white" onclick="${setter}(true)">▼ Afficher ${label} (${ADMIN_PAGE_LIMIT} sur ${total} affiché(e)s)</button>`;
+}
+function setShowAllOrders(v){_showAllOrders=v;renderOrders();}
+function setShowAllResvs(v){_showAllResvs=v;renderResvs();}
+function setShowAllClients(v){_showAllClients=v;renderClients();}
+function setShowAllReceipts(v){_showAllReceipts=v;renderReceipts();}
+function renderOrders(){const all=orders.slice().reverse();const list=_showAllOrders?all:all.slice(0,ADMIN_PAGE_LIMIT);document.getElementById('ordBody').innerHTML=list.map(r=>buildRow(r)).join('');renderMoreToggle('ordMore',all.length,_showAllOrders,'setShowAllOrders','toutes les commandes');}
 function confirmReservation(id){if(!confirm('Convertir cette réservation en commande payée et fermée ?'))return;const idx=reservations.findIndex(r=>String(r.id)===String(id));if(idx===-1)return;const r={...reservations[idx],type:'order',status:'Confirmée',acompteAmt:0};reservations.splice(idx,1);orders.push(r);saveDataToStorage();renderResvs();renderOrders();renderDash();showToast('✅ Réservation convertie en commande');}
-function renderResvs(){document.getElementById('resvBody').innerHTML=reservations.slice().reverse().map(r=>`<tr><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td><td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge bcash">${r.payment}</span></td><td><span class="badge bpend">${r.status}</span></td><td>${r.date}</td><td style="display:flex;gap:4px"><button class="del-row-btn" style="background:#20cf9e;border-color:#20cf9e" onclick="confirmReservation(${r.id})" title="Convertir en commande payée">✅</button><button class="del-row-btn" onclick="deleteReservation(${r.id})" title="Supprimer">🗑️</button></td></tr>`).join('');}
-function renderClients(){const m={};[...orders,...reservations].forEach(r=>{if(!m[r.phone])m[r.phone]={name:r.name,phone:r.phone,address:r.address||'—',orders:0,spent:0,last:r.date};m[r.phone].orders++;m[r.phone].spent+=r.total;m[r.phone].last=r.date;});document.getElementById('cliBody').innerHTML=Object.values(m).map((c,i)=>`<tr><td>${i+1}</td><td><strong>${c.name}</strong></td><td>${c.phone}</td><td style="font-size:.76rem">${c.address}</td><td>${c.orders}</td><td><strong>${c.spent.toFixed(3)} DT</strong></td><td>${c.last}</td></tr>`).join('');}
+function renderResvs(){const all=reservations.slice().reverse();const list=_showAllResvs?all:all.slice(0,ADMIN_PAGE_LIMIT);document.getElementById('resvBody').innerHTML=list.map(r=>`<tr><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td><td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge bcash">${r.payment}</span></td><td><span class="badge bpend">${r.status}</span></td><td>${r.date}</td><td style="display:flex;gap:4px"><button class="del-row-btn" style="background:#20cf9e;border-color:#20cf9e" onclick="confirmReservation(${r.id})" title="Convertir en commande payée">✅</button><button class="del-row-btn" onclick="deleteReservation(${r.id})" title="Supprimer">🗑️</button></td></tr>`).join('');renderMoreToggle('resvMore',all.length,_showAllResvs,'setShowAllResvs','toutes les réservations');}
+function renderClients(){const m={};[...orders,...reservations].forEach(r=>{if(!m[r.phone])m[r.phone]={name:r.name,phone:r.phone,address:r.address||'—',orders:0,spent:0,last:r.date};m[r.phone].orders++;m[r.phone].spent+=r.total;m[r.phone].last=r.date;});const all=Object.values(m);const list=_showAllClients?all:all.slice(0,ADMIN_PAGE_LIMIT);document.getElementById('cliBody').innerHTML=list.map((c,i)=>`<tr><td>${i+1}</td><td><strong>${c.name}</strong></td><td>${c.phone}</td><td style="font-size:.76rem">${c.address}</td><td>${c.orders}</td><td><strong>${c.spent.toFixed(3)} DT</strong></td><td>${c.last}</td></tr>`).join('');renderMoreToggle('cliMore',all.length,_showAllClients,'setShowAllClients','tous les clients');}
 function dlPDFById(id){const r=[...orders,...reservations].find(r=>String(r.id)===String(id));if(r)dlPDF(r);}
 function pdfDrawFooter(doc,W,H,libName,libAddr,libTel,type){doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Merci de votre confiance — conserver ce document comme preuve de votre '+(type==='reserve'?'réservation.':'commande.'),W/2,H-6,{align:'center'});}
 function pdfNewPage(doc,W,H,M,libName,libAddr,libTel,type,colRef,colLib,colQte,colPU,colRem,colNetHT,colTVA,colTTC,pageArr){pdfDrawFooter(doc,W,H,libName,libAddr,libTel,type);doc.addPage();pageArr[0]++;doc.setFillColor(27,43,75);doc.rect(M,8,W-2*M,9,'F');doc.setFillColor(232,96,28);doc.rect(M,8,3,9,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Référence',colRef+4,13.8);doc.text('Libellé',colLib,13.8);doc.text('QTE',colQte,13.8,{align:'center'});doc.text('Prix Unit (HT)',colPU,13.8,{align:'right'});doc.text('Remise',colRem,13.8,{align:'right'});doc.text('PU NetHT',colNetHT,13.8,{align:'right'});doc.text('TVA',colTVA,13.8,{align:'center'});doc.text('Total (TTC)',colTTC,13.8,{align:'right'});return 17;}
-function renderReceipts(){const all=[...orders,...reservations].slice().reverse();const w=document.getElementById('recWrap');if(!all.length){w.innerHTML=`<div style="padding:2rem;text-align:center;color:var(--tx3);font-size:.86rem">Aucun reçu pour le moment.</div>`;return;}w.innerHTML=all.map(r=>`<div class="rec-row"><div class="rec-info"><div class="rec-name">#${String(r.id).padStart(4,'0')} — ${r.name} <span class="badge ${r.type==='order'?'bvis':'bres'}" style="margin-left:4px">${r.type==='order'?'Commande':'Réservation'}</span></div><div class="rec-meta">${r.phone} · ${r.school} · ${r.level} · ${r.totalQty} livre(s) · <span class="badge ${r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':'bcash'}">${r.payment}</span> · ${r.date}</div></div><div class="rec-price">${r.total.toFixed(3)} DT</div><button class="rec-dl" onclick="dlPDFById(${r.id})">📄 Télécharger</button></div>`).join('');}
+function renderReceipts(){const all=[...orders,...reservations].slice().reverse();const w=document.getElementById('recWrap');if(!all.length){w.innerHTML=`<div style="padding:2rem;text-align:center;color:var(--tx3);font-size:.86rem">Aucun reçu pour le moment.</div>`;const m=document.getElementById('recMore');if(m)m.innerHTML='';return;}const list=_showAllReceipts?all:all.slice(0,ADMIN_PAGE_LIMIT);w.innerHTML=list.map(r=>`<div class="rec-row"><div class="rec-info"><div class="rec-name">#${String(r.id).padStart(4,'0')} — ${r.name} <span class="badge ${r.type==='order'?'bvis':'bres'}" style="margin-left:4px">${r.type==='order'?'Commande':'Réservation'}</span></div><div class="rec-meta">${r.phone} · ${r.school} · ${r.level} · ${r.totalQty} livre(s) · <span class="badge ${r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':'bcash'}">${r.payment}</span> · ${r.date}</div></div><div class="rec-price">${r.total.toFixed(3)} DT</div><button class="rec-dl" onclick="dlPDFById(${r.id})">📄 Télécharger</button></div>`).join('');renderMoreToggle('recMore',all.length,_showAllReceipts,'setShowAllReceipts','tous les reçus');}
 function saveLogos(cb){
   try{if(logoUrl)localStorage.setItem('librairie_logo',logoUrl);else localStorage.removeItem('librairie_logo');}catch(e){}
   try{if(logoNavUrl)localStorage.setItem('librairie_navlogo',logoNavUrl);else localStorage.removeItem('librairie_navlogo');}catch(e){}
@@ -718,6 +800,7 @@ function compressImg(dataUrl,maxW,maxH,quality,cb){const img=new Image();img.onl
 function propagateBookByEan(sourceBook){
   if(!sourceBook.ean)return;
   let touchedCurrentList=false;
+  const updates={};
   for(const k in booksDB){
     booksDB[k].forEach(b=>{
       if(b.id===sourceBook.id||b.ean!==sourceBook.ean)return;
@@ -725,31 +808,73 @@ function propagateBookByEan(sourceBook){
       if(sourceBook.img){
         b.img=sourceBook.img;
         idbSave(b.id,sourceBook.img);_imgCache[b.id]=sourceBook.img;
-        if(fbDb)fbDb.ref('librairie/bookImages/'+b.id).set(sourceBook.img).catch(()=>{});
+        updates['librairie/bookImages/'+b.id]=sourceBook.img;
       }
       if(filtSchool&&filtLv&&k===gk(filtSchool,filtLv))touchedCurrentList=true;
     });
   }
   if(touchedCurrentList){_books=booksDB[gk(filtSchool,filtLv)]||[];renderGrid(_books);updateCart();}
+  fbBatchUpdate(updates);
 }
-function uplBkImg(input,i){const f=input.files[0];if(!f)return;const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;const bookId=booksDB[key][i].id;showToast('⏳ Upload en cours...');const rd=new FileReader();rd.onload=e=>{compressImg(e.target.result,300,400,0.70,compressed=>{
-  booksDB[key][i].img=compressed;_imgCache[bookId]=compressed;
-  const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${compressed}" style="width:100%;height:100%;object-fit:cover">`;
-  idbSave(bookId,compressed);
-  propagateBookByEan(booksDB[key][i]);
-  if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}
-  const fallbackToRTDB=()=>{if(!fbDb){showToast('✅ Couverture mise à jour');return;}fbDb.ref('librairie/bookImages/'+bookId).set(compressed).then(()=>showToast('✅ Photo synchronisée sur toutes les listes et tous les PCs')).catch(()=>showToast('✅ Photo sauvegardée dans IndexedDB'));};
-  if(fbStorage&&fbDb){
-    fetch(compressed).then(r=>r.blob())
-      .then(blob=>fbStorage.ref('bookImages/'+bookId+'.jpg').put(blob))
-      .then(snap=>snap.ref.getDownloadURL())
-      .then(url=>fbDb.ref('librairie/bookImages/'+bookId).set(url))
-      .then(()=>{showToast('✅ Photo synchronisée (Firebase Storage) sur toutes les listes et tous les PCs');})
-      .catch(()=>{fallbackToRTDB();});
-  }else{
-    fallbackToRTDB();
-  }
-});};rd.readAsDataURL(f);}
+// Writes several librairie/bookImages/{id} paths in ONE atomic Firebase request instead of
+// many separate fire-and-forget .set() calls — faster, and it retries once on failure instead
+// of silently dropping images (this was the main cause of "images not syncing" reports).
+function fbBatchUpdate(updates,onDone){
+  if(!fbDb||!Object.keys(updates).length){if(onDone)onDone(true);return;}
+  const attempt=(isRetry)=>fbDb.ref().update(updates).then(()=>{if(onDone)onDone(true);}).catch(()=>{
+    if(!isRetry)setTimeout(()=>attempt(true),1500);
+    else if(onDone)onDone(false);
+  });
+  attempt(false);
+}
+function uplBkImg(input,i){
+  const f=input.files[0];if(!f)return;
+  const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;
+  const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;
+  const bookId=booksDB[key][i].id;
+  showToast('⏳ Upload en cours...');
+  const rd=new FileReader();
+  rd.onload=e=>{compressImg(e.target.result,300,400,0.70,compressed=>{
+    const finalize=(imgVal)=>{
+      const b=booksDB[key][i];
+      b.img=imgVal;_imgCache[bookId]=imgVal;
+      const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${imgVal}" style="width:100%;height:100%;object-fit:cover">`;
+      idbSave(bookId,imgVal);
+      if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}
+      // Build ONE batch covering this book + every other book sharing the same EAN,
+      // so all copies sync together atomically instead of racing separate requests.
+      const updates={};updates['librairie/bookImages/'+bookId]=imgVal;
+      let touchedCurrentList=false;
+      if(b.ean){
+        for(const k2 in booksDB){
+          booksDB[k2].forEach(b2=>{
+            if(b2.id===bookId||b2.ean!==b.ean)return;
+            b2.title=b.title;b2.subject=b.subject;b2.priceHT=b.priceHT;b2.color=b.color||b2.color;b2.img=imgVal;
+            idbSave(b2.id,imgVal);_imgCache[b2.id]=imgVal;
+            updates['librairie/bookImages/'+b2.id]=imgVal;
+            if(filtSchool&&filtLv&&k2===gk(filtSchool,filtLv))touchedCurrentList=true;
+          });
+        }
+      }
+      if(touchedCurrentList){_books=booksDB[gk(filtSchool,filtLv)]||[];renderGrid(_books);updateCart();}
+      if(!fbDb){showToast('✅ Photo mise à jour (appareil uniquement — Firebase non connecté)');return;}
+      const n=Object.keys(updates).length;
+      fbBatchUpdate(updates,ok=>{
+        showToast(ok?'✅ Photo synchronisée sur '+n+' fiche(s), tous les appareils':'❌ Échec de synchronisation — vérifiez votre connexion et réessayez');
+      });
+    };
+    if(fbStorage){
+      fetch(compressed).then(r=>r.blob())
+        .then(blob=>fbStorage.ref('bookImages/'+bookId+'.jpg').put(blob))
+        .then(snap=>snap.ref.getDownloadURL())
+        .then(url=>finalize(url))
+        .catch(()=>finalize(compressed));
+    }else{
+      finalize(compressed);
+    }
+  });};
+  rd.readAsDataURL(f);
+}
 function addBookRow(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;if(!school||!lv)return;const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];const ean='978997'+(Math.floor(Math.random()*9000000)+1000000);booksDB[key].push({id:Date.now(),title:'Nouveau livre',ean:ean,subject:'Matière',priceHT:8.000,color:CLRS[Math.floor(Math.random()*CLRS.length)],img:''});renderBookEd();}
 function delBkRow(i){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(booksDB[key])booksDB[key].splice(i,1);renderBookEd();}
 function saveBooks(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!key||!booksDB[key])return;booksDB[key].forEach((b,i)=>{const ti=document.getElementById('bt-'+i),ei=document.getElementById('be-'+i),si=document.getElementById('bs-'+i),pi=document.getElementById('bp-'+i);if(ti)b.title=ti.value;if(ei)b.ean=ei.value;if(si)b.subject=si.value;if(pi)b.priceHT=parseFloat(pi.value)||0;if(b.ean)propagateBookByEan(b);});if(autoSave)saveDataToStorage();if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);updateCart();}showToast('✅ Livres sauvegardés et synchronisés (même EAN) — '+school+' · '+lv);}
@@ -760,7 +885,7 @@ async function loadImgsFromIDB(){try{const all=await idbLoadAll();Object.assign(
 function saveDataToStorage(){
   saveImgsLocally();
   const booksDBNoImg={};Object.keys(booksDB).forEach(k=>{booksDBNoImg[k]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject,priceHT:b.priceHT,color:b.color}));});
-  const data={orders,reservations,schoolLevels,booksDB:booksDBNoImg,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,autoSave,adminUser,adminPass,heroSubTxt,deliveryNote,orderEnabled,remiseEnabled,acompteEnabled,avanceException,livraisonEnabled,acompteDefaultAmt};
+  const data={orders,reservations,fournisseurHistory,schoolLevels,booksDB:booksDBNoImg,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,autoSave,adminUser,adminPass,heroSubTxt,deliveryNote,orderEnabled,remiseEnabled,acompteEnabled,avanceException,livraisonEnabled,acompteDefaultAmt};
   try{localStorage.setItem('librairie_rayen_db',JSON.stringify(data));}catch(e){console.error('❌ Erreur localStorage:',e);showToast('⚠️ Erreur sauvegarde : '+e.message);}
   if(fbDb){
     const booksLight={};Object.keys(booksDB).forEach(k=>{booksLight[k]=booksDB[k].map(b=>({id:b.id,title:b.title,ean:b.ean,subject:b.subject,priceHT:b.priceHT,color:b.color}));});
@@ -768,9 +893,10 @@ function saveDataToStorage(){
     fbDb.ref('librairie/config').set(cfg).catch(e=>{console.error('❌ Erreur Firebase:',e);showToast('❌ Erreur Firebase: '+e.message);});
     const ordMap={};orders.forEach((o,i)=>ordMap['o'+i]=o);fbDb.ref('librairie/orders').set(orders.length?ordMap:null).catch(()=>{});
     const resMap={};reservations.forEach((r,i)=>resMap['r'+i]=r);fbDb.ref('librairie/reservations').set(reservations.length?resMap:null).catch(()=>{});
+    const fhMap={};fournisseurHistory.forEach((h,i)=>fhMap['h'+i]=h);fbDb.ref('librairie/fournisseurHistory').set(fournisseurHistory.length?fhMap:null).catch(()=>{});
   }
 }
-function loadDataFromStorage(){try{const stored=localStorage.getItem('librairie_rayen_db');if(!stored)return;const data=JSON.parse(stored);if(data.orders)orders=data.orders;if(data.reservations)reservations=data.reservations;if(data.schoolLevels)schoolLevels=data.schoolLevels;if(data.booksDB){booksDB=data.booksDB;loadImgsIntoBooks();}if(data.libName)libName=data.libName;if(data.libTag)libTag=data.libTag;if(data.libTel)libTel=data.libTel;if(data.libMF)libMF=data.libMF;if(data.libAddr)libAddr=data.libAddr;if(data.deliveryFee)deliveryFee=data.deliveryFee;if(data.remisePct)remisePct=data.remisePct;if(data.tvaPct)tvaPct=data.tvaPct;if(typeof data.autoSave!=='undefined')autoSave=!!data.autoSave;try{const cb=document.getElementById('autoSaveChk');if(cb)cb.checked=!!autoSave;}catch(e){}if(data.adminUser)adminUser=data.adminUser;if(data.adminPass)adminPass=data.adminPass;if(data.logoUrl&&!logoUrl){logoUrl=data.logoUrl;try{localStorage.setItem('librairie_logo',logoUrl);}catch(e){}setTimeout(()=>{if(fbDb&&logoUrl)fbDb.ref('librairie/logos/main').set(logoUrl).catch(()=>{});},3000);}if(data.logoNavUrl&&!logoNavUrl){logoNavUrl=data.logoNavUrl;try{localStorage.setItem('librairie_navlogo',logoNavUrl);}catch(e){}setTimeout(()=>{if(fbDb&&logoNavUrl)fbDb.ref('librairie/logos/nav').set(logoNavUrl).catch(()=>{});},3000);}if(data.heroSubTxt)heroSubTxt=data.heroSubTxt;if(data.deliveryNote)deliveryNote=data.deliveryNote;try{const hs=document.getElementById('heroSub');if(hs&&heroSubTxt)hs.textContent=heroSubTxt;}catch(e){}if(typeof data.orderEnabled!=='undefined')orderEnabled=!!data.orderEnabled;if(typeof data.remiseEnabled!=='undefined')remiseEnabled=!!data.remiseEnabled;if(typeof data.acompteEnabled!=='undefined')acompteEnabled=!!data.acompteEnabled;if(typeof data.avanceException!=='undefined')avanceException=!!data.avanceException;if(typeof data.livraisonEnabled!=='undefined')livraisonEnabled=!!data.livraisonEnabled;if(data.acompteDefaultAmt!==undefined)acompteDefaultAmt=data.acompteDefaultAmt;}catch(e){console.error('❌ Erreur chargement:',e);}}
+function loadDataFromStorage(){try{const stored=localStorage.getItem('librairie_rayen_db');if(!stored)return;const data=JSON.parse(stored);if(data.orders)orders=data.orders;if(data.reservations)reservations=data.reservations;if(data.fournisseurHistory)fournisseurHistory=data.fournisseurHistory;if(data.schoolLevels)schoolLevels=data.schoolLevels;if(data.booksDB){booksDB=data.booksDB;loadImgsIntoBooks();}if(data.libName)libName=data.libName;if(data.libTag)libTag=data.libTag;if(data.libTel)libTel=data.libTel;if(data.libMF)libMF=data.libMF;if(data.libAddr)libAddr=data.libAddr;if(data.deliveryFee)deliveryFee=data.deliveryFee;if(data.remisePct)remisePct=data.remisePct;if(data.tvaPct)tvaPct=data.tvaPct;if(typeof data.autoSave!=='undefined')autoSave=!!data.autoSave;try{const cb=document.getElementById('autoSaveChk');if(cb)cb.checked=!!autoSave;}catch(e){}if(data.adminUser)adminUser=data.adminUser;if(data.adminPass)adminPass=data.adminPass;if(data.logoUrl&&!logoUrl){logoUrl=data.logoUrl;try{localStorage.setItem('librairie_logo',logoUrl);}catch(e){}setTimeout(()=>{if(fbDb&&logoUrl)fbDb.ref('librairie/logos/main').set(logoUrl).catch(()=>{});},3000);}if(data.logoNavUrl&&!logoNavUrl){logoNavUrl=data.logoNavUrl;try{localStorage.setItem('librairie_navlogo',logoNavUrl);}catch(e){}setTimeout(()=>{if(fbDb&&logoNavUrl)fbDb.ref('librairie/logos/nav').set(logoNavUrl).catch(()=>{});},3000);}if(data.heroSubTxt)heroSubTxt=data.heroSubTxt;if(data.deliveryNote)deliveryNote=data.deliveryNote;try{const hs=document.getElementById('heroSub');if(hs&&heroSubTxt)hs.textContent=heroSubTxt;}catch(e){}if(typeof data.orderEnabled!=='undefined')orderEnabled=!!data.orderEnabled;if(typeof data.remiseEnabled!=='undefined')remiseEnabled=!!data.remiseEnabled;if(typeof data.acompteEnabled!=='undefined')acompteEnabled=!!data.acompteEnabled;if(typeof data.avanceException!=='undefined')avanceException=!!data.avanceException;if(typeof data.livraisonEnabled!=='undefined')livraisonEnabled=!!data.livraisonEnabled;if(data.acompteDefaultAmt!==undefined)acompteDefaultAmt=data.acompteDefaultAmt;}catch(e){console.error('❌ Erreur chargement:',e);}}
 function clearAllData(){if(confirm('⚠️ Êtes-vous sûr(e) de vouloir effacer TOUTES les données ? Cette action est irréversible.')){localStorage.removeItem('librairie_rayen_db');orders=[];reservations=[];showToast('🗑️ Toutes les données ont été effacées');location.reload();}}
 function exportData(){const data={orders,reservations,schoolLevels,booksDB,libName,libTag,libTel,libMF,libAddr,deliveryFee,remisePct,tvaPct,exportDate:new Date().toLocaleString('fr-FR')};const json=JSON.stringify(data,null,2);const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='librairie_rayen_backup_'+new Date().getTime()+'.json';a.click();URL.revokeObjectURL(url);showToast('📥 Données exportées en JSON');}
 function updateStorageInfo(){try{const stored=localStorage.getItem('librairie_rayen_db');const size=stored?((stored.length/1024).toFixed(2)+' KB'):'Aucune donnée';const recordCount='Commandes: '+orders.length+' | Réservations: '+reservations.length+' | Écoles: '+Object.keys(schoolLevels).length;document.getElementById('storageInfo').innerHTML=size+' — '+recordCount;}catch(e){}}
