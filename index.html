@@ -480,7 +480,8 @@
             <button class="add-bk" onclick="addBookRow()">+ Ajouter un livre</button>
             <button class="save-btn" onclick="saveBooks()" style="margin-left:.5rem">💾 Sauvegarder</button>
             <button class="save-btn" style="margin-left:.5rem;background:var(--orange);color:white" onclick="checkEanDuplicates()">🔍 Vérifier les EAN en double</button>
-            <button class="save-btn" style="margin-left:.5rem;background:#DC2626;color:white" onclick="dedupeBooksInLists()">🧹 Supprimer les doublons (garde les photos)</button>
+            <button class="save-btn" style="margin-left:.5rem;background:#DC2626;color:white" onclick="dedupeCurrentList()">🧹 Supprimer les doublons de cette liste</button>
+            <button class="save-btn" style="margin-left:.5rem;background:#991B1B;color:white" onclick="dedupeBooksInLists()">🧹 Supprimer les doublons — toutes les écoles/niveaux</button>
             <label style="display:inline-flex;align-items:center;gap:.45rem;margin-left:.8rem;font-size:.78rem;color:var(--tx2);cursor:pointer" title="Recadre automatiquement l'image pour remplir la couverture sans bords blancs">
               <input type="checkbox" id="autoAdjustChk" onchange="autoAdjustImg=this.checked">
               ✂️ Ajuster l'image automatiquement

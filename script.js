@@ -166,7 +166,7 @@ function gk(s,l){return s+'|'+l;}
 function filterBooks(){const school=document.getElementById('schoolSel').value;const lv=document.getElementById('levelSel').value;if(!school||!lv){showToast('⚠️ '+(lang==='fr'?'Choisissez école et niveau':'Select school and level'));return;}filtSchool=school;filtLv=lv;_books=booksDB[gk(school,lv)]||[];_books.forEach(b=>{if(!b.img){if(_imgCache[b.id]){b.img=_imgCache[b.id];}else{try{const v=localStorage.getItem('librairie_img_'+b.id);if(v){_imgCache[b.id]=v;b.img=v;}}catch(e){}}}});cart={};renderGrid(_books);updateCart();document.getElementById('cartBar').classList.add('vis');}
 function priceTTC(b){return b.priceHT;}
 function coverInner(b){return b.img?`<img src="${b.img}" alt="${b.title}">`:`<div class="bcover-fb" style="background:${b.color}">${b.subject}<br><span style="font-size:1.4rem;margin-top:4px">📖</span></div>`;}
-function bHTML(b){const qty=cart[b.id]?cart[b.id].qty:0;const sel=qty>0;const ttc=priceTTC(b);return`<div class="bcard ${sel?'sel':''}" id="bc-${b.id}" onclick="toggleBook(${b.id})"><div class="btick">✓</div><div class="bcover" id="bcv-${b.id}">${coverInner(b)}<div class="bcover-ean">EAN ${b.ean||'—'}</div></div><div class="bqty" onclick="event.stopPropagation()"><button class="qbtn" onclick="adjQty(event,${b.id},-1)">−</button><div class="qnum" id="qv-${b.id}">${qty||1}</div><button class="qbtn" onclick="adjQty(event,${b.id},1)">+</button></div><div class="binfo"><div class="btitle">${b.title}</div><div class="bsubj">${b.subject}</div><div class="bfoot"><div class="bprice">${ttc.toFixed(3)} TND</div><span class="bqbadge" id="qb-${b.id}">×${qty||1}</span></div></div></div>`;}
+function bHTML(b){const qty=cart[b.id]?cart[b.id].qty:0;const sel=qty>0;const ttc=priceTTC(b);return`<div class="bcard ${sel?'sel':''}" id="bc-${b.id}" onclick="toggleBook('${b.id}')"><div class="btick">✓</div><div class="bcover" id="bcv-${b.id}">${coverInner(b)}<div class="bcover-ean">EAN ${b.ean||'—'}</div></div><div class="bqty" onclick="event.stopPropagation()"><button class="qbtn" onclick="adjQty(event,'${b.id}',-1)">−</button><div class="qnum" id="qv-${b.id}">${qty||1}</div><button class="qbtn" onclick="adjQty(event,'${b.id}',1)">+</button></div><div class="binfo"><div class="btitle">${b.title}</div><div class="bsubj">${b.subject}</div><div class="bfoot"><div class="bprice">${ttc.toFixed(3)} TND</div><span class="bqbadge" id="qb-${b.id}">×${qty||1}</span></div></div></div>`;}
 function lazyLoadCover(b){
   if(b.img)return;
   if(_imgCache[b.id]){b.img=_imgCache[b.id];const el=document.getElementById('bcv-'+b.id);if(el)el.innerHTML=coverInner(b)+`<div class="bcover-ean">EAN ${b.ean||'—'}</div>`;return;}
@@ -178,7 +178,7 @@ function lazyLoadCover(b){
   }).catch(()=>{});
 }
 function renderGrid(books){if(!books.length){document.getElementById('booksArea').innerHTML=`<div class="empty-state"><span class="es-ico">📭</span><div class="es-title">${lang==='fr'?'Aucun livre pour ce niveau':'No books for this level'}</div></div>`;return;}document.getElementById('booksArea').innerHTML=`<div class="rbanner">📚 ${books.length} ${lang==='fr'?'livre(s) pour':'book(s) for'} <strong>${filtSchool}</strong> — <strong>${filtLv}</strong></div><div class="bgrid">${books.map(bHTML).join('')}</div>`;books.forEach(lazyLoadCover);}
-function toggleBook(id){const all=Object.values(booksDB).flat();const b=all.find(x=>x.id===id);if(!b)return;const card=document.getElementById('bc-'+id);if(cart[id]){delete cart[id];if(card)card.classList.remove('sel');}else{cart[id]={book:b,qty:1};if(card)card.classList.add('sel');const qv=document.getElementById('qv-'+id);if(qv)qv.textContent='1';const qbg=document.getElementById('qb-'+id);if(qbg)qbg.textContent='×1';}updateCart();}
+function toggleBook(id){const all=Object.values(booksDB).flat();const b=all.find(x=>String(x.id)===String(id));if(!b)return;const card=document.getElementById('bc-'+id);if(cart[id]){delete cart[id];if(card)card.classList.remove('sel');}else{cart[id]={book:b,qty:1};if(card)card.classList.add('sel');const qv=document.getElementById('qv-'+id);if(qv)qv.textContent='1';const qbg=document.getElementById('qb-'+id);if(qbg)qbg.textContent='×1';}updateCart();}
 function adjQty(event,id,delta){event.stopPropagation();if(!cart[id])return;const nq=Math.max(1,cart[id].qty+delta);cart[id].qty=nq;const qv=document.getElementById('qv-'+id);if(qv)qv.textContent=nq;const qbg=document.getElementById('qb-'+id);if(qbg)qbg.textContent='×'+nq;updateCart();}
 function updateCart(){const items=Object.values(cart);const totalQty=items.reduce((s,i)=>s+i.qty,0);const totalRaw=items.reduce((s,i)=>s+priceTTC(i.book)*i.qty,0);const totalTTC=remiseEnabled?totalRaw*0.9:totalRaw;document.getElementById('cbadge').textContent=totalQty+(lang==='fr'?' article(s)':' item(s)');document.getElementById('ctot').textContent=(remiseEnabled?'🏷️ ':'')+totalTTC.toFixed(3)+' TND';const dis=totalQty===0;const btnOrd=document.getElementById('btnOrd');btnOrd.style.display=orderEnabled?'flex':'none';btnOrd.disabled=dis;document.getElementById('btnRes').disabled=dis;const btnDev=document.getElementById('btnDevis');if(btnDev)btnDev.disabled=dis;}
 function applyOrderModeUI(){const lbl=document.getElementById('ord-status-lbl');const alert=document.getElementById('ord-alert');const tog=document.getElementById('tog-order');if(tog)tog.checked=orderEnabled;if(lbl){if(orderEnabled){lbl.textContent='Les clients peuvent commander';lbl.style.color='var(--green)';if(alert)alert.style.display='none';}else{lbl.textContent='Commande en ligne désactivée';lbl.style.color='var(--oh)';if(alert)alert.style.display='block';}}updateCart();}
@@ -227,6 +227,24 @@ function handleExcelFile(input){
       const data=new Uint8Array(e.target.result);
       const wb=XLSX.read(data,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
+      // Fill merged cells (e.g. "École" or "Niveau" written once and merged down over many book
+      // rows) with the anchor cell's value on every row of the merge — otherwise sheet_to_json only
+      // sees the value on the merge's first row and treats every row below it as blank, causing
+      // those books to be silently skipped ("des livres qui ne sont pas créés").
+      if(ws['!merges']){
+        ws['!merges'].forEach(rng=>{
+          const anchorAddr=XLSX.utils.encode_cell({r:rng.s.r,c:rng.s.c});
+          const anchorCell=ws[anchorAddr];
+          if(!anchorCell)return;
+          for(let r=rng.s.r;r<=rng.e.r;r++){
+            for(let c=rng.s.c;c<=rng.e.c;c++){
+              if(r===rng.s.r&&c===rng.s.c)continue;
+              const addr=XLSX.utils.encode_cell({r,c});
+              if(!ws[addr])ws[addr]={...anchorCell};
+            }
+          }
+        });
+      }
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       if(!rows||rows.length<2){alert('Fichier vide ou invalide.');return;}
       _xlHeaders=(rows[0]||[]).map(String);
@@ -903,38 +921,15 @@ function uplBkImg(input,i){
 }
 function addBookRow(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;if(!school||!lv)return;const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];booksDB[key].push({id:Date.now(),title:'Nouveau livre',ean:'',subject:'Matière',priceHT:8.000,color:CLRS[Math.floor(Math.random()*CLRS.length)],img:''});renderBookEd();}
 function dedupeBooksInLists(){
-  const normEan=v=>(v||'').replace(/[^\d]/g,'');
-  const normTitle=v=>(v||'').trim().toLowerCase().replace(/\s+/g,' ');
   const plan={};
   let totalRemoved=0;
   Object.keys(booksDB).forEach(key=>{
-    const list=booksDB[key];
-    const seen=new Map();
-    const result=[];
-    let removedHere=0;
-    list.forEach(b=>{
-      const eanN=normEan(b.ean);
-      const idKey=eanN||('t:'+normTitle(b.title));
-      if(seen.has(idKey)){
-        // Merge into the kept copy instead of dropping data — a duplicate that happens to have
-        // the photo/price/subject filled in (and the kept one doesn't) must not lose it.
-        const kept=seen.get(idKey);
-        if(!kept.img&&b.img)kept.img=b.img;
-        if((!kept.priceHT||kept.priceHT<=0)&&b.priceHT>0)kept.priceHT=b.priceHT;
-        if(!kept.subject&&b.subject)kept.subject=b.subject;
-        if(!kept.ean&&b.ean)kept.ean=b.ean;
-        removedHere++;
-      }else{
-        const copy={...b};
-        seen.set(idKey,copy);
-        result.push(copy);
-      }
-    });
-    if(removedHere>0){plan[key]={result,removed:removedHere};totalRemoved+=removedHere;}
+    const {result,removed}=computeDedupedList(booksDB[key]);
+    if(removed>0){plan[key]={result,removed};totalRemoved+=removed;}
   });
   if(!totalRemoved){alert('✅ Aucun doublon détecté dans vos listes.');return;}
   const detail=Object.entries(plan).map(([key,p])=>'• '+key.replace('|',' / ')+' — '+p.removed+' doublon(s)').join('\n');
-  if(!confirm('⚠️ '+totalRemoved+' livre(s) en double détecté(s) :\n\n'+detail+'\n\nLes doublons seront supprimés. Les photos, prix et matières déjà renseignés seront conservés sur la fiche restante — rien n\'est perdu.\n\nContinuer ?'))return;
+  if(!confirm('⚠️ '+totalRemoved+' livre(s) en double détecté(s) DANS TOUTES LES ÉCOLES/NIVEAUX :\n\n'+detail+'\n\nLes doublons seront supprimés. Les photos, prix et matières déjà renseignés seront conservés sur la fiche restante — rien n\'est perdu.\n\nContinuer ?'))return;
   Object.entries(plan).forEach(([key,p])=>{booksDB[key]=p.result;});
   saveDataToStorage();
   const area=document.getElementById('bookEdArea');
@@ -942,6 +937,46 @@ function dedupeBooksInLists(){
   if(filtSchool&&filtLv){_books=booksDB[gk(filtSchool,filtLv)]||[];renderGrid(_books);}
   const el=document.getElementById('eanDupReport');if(el)el.innerHTML='';
   showToast('🧹 '+totalRemoved+' doublon(s) supprimé(s) — photos et prix conservés');
+}
+// Shared merge logic used by both the "clean everything" and the "clean this list only" tools —
+// keeps whichever image/price/subject is already filled in when two entries turn out to be the
+// same book (matched by EAN digits-only, or by title if no EAN), so nothing gets lost.
+function computeDedupedList(list){
+  const normEan=v=>(v||'').replace(/[^\d]/g,'');
+  const normTitle=v=>(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const seen=new Map();
+  const result=[];
+  let removed=0;
+  list.forEach(b=>{
+    const eanN=normEan(b.ean);
+    const idKey=eanN||('t:'+normTitle(b.title));
+    if(seen.has(idKey)){
+      const kept=seen.get(idKey);
+      if(!kept.img&&b.img)kept.img=b.img;
+      if((!kept.priceHT||kept.priceHT<=0)&&b.priceHT>0)kept.priceHT=b.priceHT;
+      if(!kept.subject&&b.subject)kept.subject=b.subject;
+      if(!kept.ean&&b.ean)kept.ean=b.ean;
+      removed++;
+    }else{
+      const copy={...b};
+      seen.set(idKey,copy);
+      result.push(copy);
+    }
+  });
+  return {result,removed};
+}
+function dedupeCurrentList(){
+  const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;
+  if(!school||!lv){alert('⚠️ Choisissez d\'abord une école et un niveau ci-dessus.');return;}
+  const key=gk(school,lv);
+  const {result,removed}=computeDedupedList(booksDB[key]||[]);
+  if(!removed){alert('✅ Aucun doublon dans « '+school+' / '+lv+' ».');return;}
+  if(!confirm('⚠️ '+removed+' doublon(s) détecté(s) dans « '+school+' / '+lv+' ».\n\nLes photos, prix et matières déjà renseignés seront conservés sur la fiche restante — rien n\'est perdu.\n\nContinuer ?'))return;
+  booksDB[key]=result;
+  saveDataToStorage();
+  renderBookEd();
+  if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);}
+  showToast('🧹 '+removed+' doublon(s) supprimé(s) dans « '+school+' / '+lv+' » — photos conservées');
 }
 function checkEanDuplicates(){
   const byEan={};
