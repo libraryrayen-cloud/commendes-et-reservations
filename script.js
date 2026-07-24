@@ -466,8 +466,15 @@ function doExcelImport(){
     if(!schoolLevels[school].includes(level)){schoolLevels[school].push(level);levelsCreated++;}
     const key=gk(school,level);
     if(!booksDB[key])booksDB[key]=[];
-    // Skip if book already exists (by EAN or title)
-    const exists=booksDB[key].some(b=>(ean&&b.ean===ean)||(b.title===title));
+    // Skip if book already exists — compare EAN (digits only, ignores dashes/spaces) and title
+    // (case/whitespace-insensitive) instead of a strict === match, since Excel exports often repeat
+    // the same book with tiny formatting differences (extra space, different case, "978-997-..." vs
+    // "978997..."), which a strict comparison would wrongly treat as two different books.
+    const normEan=v=>(v||'').replace(/[^\d]/g,'');
+    const normTitle=v=>(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+    const eanNorm=normEan(ean);
+    const titleNorm=normTitle(title);
+    const exists=booksDB[key].some(b=>(eanNorm&&normEan(b.ean)===eanNorm)||normTitle(b.title)===titleNorm);
     if(exists){skipped++;return;}
     // If this EAN already exists in another school/level list, inherit its price/subject/photo — then propagate the merged result to ALL matching entries (same EAN = same book everywhere)
     const eanMatch=ean?findBookByEan(ean):null;
@@ -767,8 +774,13 @@ function onEanInput(inp,i){
   const ean=inp.value.trim();
   booksDB[key][i].ean=ean;
   if(!ean)return;
+  if(!/^\d{13}$/.test(ean)){showToast('⚠️ EAN invalide — un EAN-13 doit contenir exactement 13 chiffres');return;}
   const match=findBookByEan(ean,key,i);
   if(!match)return;
+  const matchKey=Object.keys(booksDB).find(k=>booksDB[k].includes(match));
+  const matchLoc=matchKey?matchKey.replace('|',' / '):'école/niveau inconnu';
+  const proceed=confirm('Cet EAN correspond déjà à :\n« '+match.title+' »\n('+matchLoc+')\n\nCopier son titre, prix, matière et photo sur ce livre ?\n\n⚠️ Si ce n\'est PAS le même livre, annulez et vérifiez l\'EAN (faute de frappe possible).');
+  if(!proceed)return;
   const b=booksDB[key][i];
   const pi=document.getElementById('bp-'+i);if(pi)pi.value=match.priceHT.toFixed(3);
   b.priceHT=match.priceHT;
@@ -796,7 +808,7 @@ function lazyLoadEditorThumb(b,i){
     const th=document.getElementById('bth-'+i);if(th)th.innerHTML=`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`;
   }).catch(()=>{});
 }
-function compressImg(dataUrl,maxW,maxH,quality,cb){const img=new Image();img.onload=()=>{let sx=0,sy=0,sw=img.width,sh=img.height;if(autoAdjustImg){const targetRatio=maxW/maxH;const imgRatio=img.width/img.height;if(imgRatio>targetRatio){sw=Math.round(img.height*targetRatio);sx=Math.round((img.width-sw)/2);}else{sh=Math.round(img.width/targetRatio);sy=Math.round((img.height-sh)/2);}const c=document.createElement('canvas');c.width=maxW;c.height=maxH;c.getContext('2d').drawImage(img,sx,sy,sw,sh,0,0,maxW,maxH);cb(c.toDataURL('image/jpeg',quality));}else{const scale=Math.min(1,maxW/img.width,maxH/img.height);const w=Math.round(img.width*scale);const h=Math.round(img.height*scale);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',quality));}};img.src=dataUrl;}
+function compressImg(dataUrl,maxW,maxH,quality,cb){const img=new Image();img.onerror=()=>cb(null);img.onload=()=>{let sx=0,sy=0,sw=img.width,sh=img.height;if(autoAdjustImg){const targetRatio=maxW/maxH;const imgRatio=img.width/img.height;if(imgRatio>targetRatio){sw=Math.round(img.height*targetRatio);sx=Math.round((img.width-sw)/2);}else{sh=Math.round(img.width/targetRatio);sy=Math.round((img.height-sh)/2);}const c=document.createElement('canvas');c.width=maxW;c.height=maxH;c.getContext('2d').drawImage(img,sx,sy,sw,sh,0,0,maxW,maxH);cb(c.toDataURL('image/jpeg',quality));}else{const scale=Math.min(1,maxW/img.width,maxH/img.height);const w=Math.round(img.width*scale);const h=Math.round(img.height*scale);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',quality));}};img.src=dataUrl;}
 function propagateBookByEan(sourceBook){
   if(!sourceBook.ean)return;
   let touchedCurrentList=false;
@@ -832,9 +844,24 @@ function uplBkImg(input,i){
   const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;
   const key=gk(school,lv);if(!booksDB[key]||!booksDB[key][i])return;
   const bookId=booksDB[key][i].id;
+  if(!f.type.startsWith('image/')||/heic|heif/i.test(f.type)||/\.(heic|heif)$/i.test(f.name||'')){
+    showToast('❌ Format non supporté — utilisez une photo JPG ou PNG (pas HEIC/HEIF des iPhone)');
+    input.value='';
+    return;
+  }
+  let uploadTimedOut=false;
+  const timeoutId=setTimeout(()=>{uploadTimedOut=true;showToast('❌ Échec : le fichier n\'a pas pu être lu comme image (fichier corrompu ou format non supporté)');input.value='';},15000);
   showToast('⏳ Upload en cours...');
-  const rd=new FileReader();
-  rd.onload=e=>{compressImg(e.target.result,300,400,0.70,compressed=>{
+  // Use an object URL instead of FileReader.readAsDataURL: a phone photo can be several MB, and
+  // base64-encoding the whole thing into a JS string before we even resize it is what was freezing
+  // the tab ("page unresponsive") on slower PCs. An object URL is instant — no encoding, no big
+  // string in memory — the browser just streams the file for decoding.
+  const objUrl=URL.createObjectURL(f);
+  compressImg(objUrl,300,400,0.70,compressed=>{
+    URL.revokeObjectURL(objUrl);
+    clearTimeout(timeoutId);
+    if(uploadTimedOut)return;
+    if(compressed===null){showToast('❌ Impossible de lire cette image — utilisez une photo JPG ou PNG (pas HEIC/HEIF des iPhone)');input.value='';return;}
     const finalize=(imgVal)=>{
       const b=booksDB[key][i];
       b.img=imgVal;_imgCache[bookId]=imgVal;
@@ -872,10 +899,75 @@ function uplBkImg(input,i){
     }else{
       finalize(compressed);
     }
-  });};
-  rd.readAsDataURL(f);
+  });
 }
-function addBookRow(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;if(!school||!lv)return;const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];const ean='978997'+(Math.floor(Math.random()*9000000)+1000000);booksDB[key].push({id:Date.now(),title:'Nouveau livre',ean:ean,subject:'Matière',priceHT:8.000,color:CLRS[Math.floor(Math.random()*CLRS.length)],img:''});renderBookEd();}
+function addBookRow(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;if(!school||!lv)return;const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];booksDB[key].push({id:Date.now(),title:'Nouveau livre',ean:'',subject:'Matière',priceHT:8.000,color:CLRS[Math.floor(Math.random()*CLRS.length)],img:''});renderBookEd();}
+function dedupeBooksInLists(){
+  const normEan=v=>(v||'').replace(/[^\d]/g,'');
+  const normTitle=v=>(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const plan={};
+  let totalRemoved=0;
+  Object.keys(booksDB).forEach(key=>{
+    const list=booksDB[key];
+    const seen=new Map();
+    const result=[];
+    let removedHere=0;
+    list.forEach(b=>{
+      const eanN=normEan(b.ean);
+      const idKey=eanN||('t:'+normTitle(b.title));
+      if(seen.has(idKey)){
+        // Merge into the kept copy instead of dropping data — a duplicate that happens to have
+        // the photo/price/subject filled in (and the kept one doesn't) must not lose it.
+        const kept=seen.get(idKey);
+        if(!kept.img&&b.img)kept.img=b.img;
+        if((!kept.priceHT||kept.priceHT<=0)&&b.priceHT>0)kept.priceHT=b.priceHT;
+        if(!kept.subject&&b.subject)kept.subject=b.subject;
+        if(!kept.ean&&b.ean)kept.ean=b.ean;
+        removedHere++;
+      }else{
+        const copy={...b};
+        seen.set(idKey,copy);
+        result.push(copy);
+      }
+    });
+    if(removedHere>0){plan[key]={result,removed:removedHere};totalRemoved+=removedHere;}
+  });
+  if(!totalRemoved){alert('✅ Aucun doublon détecté dans vos listes.');return;}
+  const detail=Object.entries(plan).map(([key,p])=>'• '+key.replace('|',' / ')+' — '+p.removed+' doublon(s)').join('\n');
+  if(!confirm('⚠️ '+totalRemoved+' livre(s) en double détecté(s) :\n\n'+detail+'\n\nLes doublons seront supprimés. Les photos, prix et matières déjà renseignés seront conservés sur la fiche restante — rien n\'est perdu.\n\nContinuer ?'))return;
+  Object.entries(plan).forEach(([key,p])=>{booksDB[key]=p.result;});
+  saveDataToStorage();
+  const area=document.getElementById('bookEdArea');
+  if(area&&area.style.display!=='none')renderBookEd();
+  if(filtSchool&&filtLv){_books=booksDB[gk(filtSchool,filtLv)]||[];renderGrid(_books);}
+  const el=document.getElementById('eanDupReport');if(el)el.innerHTML='';
+  showToast('🧹 '+totalRemoved+' doublon(s) supprimé(s) — photos et prix conservés');
+}
+function checkEanDuplicates(){
+  const byEan={};
+  Object.keys(booksDB).forEach(key=>{
+    booksDB[key].forEach(b=>{
+      if(!b.ean)return;
+      if(!byEan[b.ean])byEan[b.ean]=[];
+      byEan[b.ean].push({title:b.title,loc:key.replace('|',' / ')});
+    });
+  });
+  const problems=Object.entries(byEan).filter(([ean,list])=>{
+    if(list.length<2)return false;
+    const titles=new Set(list.map(b=>b.title.trim().toLowerCase()));
+    return titles.size>1;
+  });
+  const el=document.getElementById('eanDupReport');if(!el)return;
+  if(!problems.length){
+    el.innerHTML='<div style="background:#D1FAE5;color:#065F46;border-radius:8px;padding:10px 14px;font-size:.8rem">✅ Aucun EAN en double avec des titres différents détecté.</div>';
+    return;
+  }
+  el.innerHTML='<div style="background:#FEE2E2;color:#991B1B;border-radius:8px;padding:12px 14px;font-size:.8rem;margin-bottom:8px">⚠️ '+problems.length+' EAN partagé(s) par des livres différents — c\'est probablement la cause des livres qui apparaissent au mauvais endroit. Corrigez l\'EAN incorrect ci-dessous (via l\'éditeur de livres) :</div>'+
+    problems.map(([ean,list])=>`<div style="border:1px solid var(--bd);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.78rem">
+      <strong>EAN ${ean}</strong> utilisé par ${list.length} fiches différentes :
+      <ul style="margin:6px 0 0 18px;padding:0">${list.map(b=>`<li>« ${b.title} » — ${b.loc}</li>`).join('')}</ul>
+    </div>`).join('');
+}
 function delBkRow(i){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(booksDB[key])booksDB[key].splice(i,1);renderBookEd();}
 function saveBooks(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;const key=gk(school,lv);if(!key||!booksDB[key])return;booksDB[key].forEach((b,i)=>{const ti=document.getElementById('bt-'+i),ei=document.getElementById('be-'+i),si=document.getElementById('bs-'+i),pi=document.getElementById('bp-'+i);if(ti)b.title=ti.value;if(ei)b.ean=ei.value;if(si)b.subject=si.value;if(pi)b.priceHT=parseFloat(pi.value)||0;if(b.ean)propagateBookByEan(b);});if(autoSave)saveDataToStorage();if(filtSchool===school&&filtLv===lv){_books=booksDB[key];renderGrid(_books);updateCart();}showToast('✅ Livres sauvegardés et synchronisés (même EAN) — '+school+' · '+lv);}
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('vis');setTimeout(()=>el.classList.remove('vis'),2600);}
