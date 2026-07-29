@@ -384,7 +384,7 @@ function xlShowSchoolMap(){
   _xlRows.forEach(r=>{
     const ex=String(r[iS]||'').trim();
     const lv=String(r[iL]||'').trim();
-    const et=getEtablissement(lv)||'Autre';
+    const et=getEtablissementForImport(lv)||'Autre';
     const k=xlEtabKey(ex,et);
     if(ex&&!seen.has(k)){seen.add(k);pairs.push({ex,et});}
   });
@@ -466,7 +466,7 @@ function doExcelImport(){
     const level=String(r[iL]||'').trim().replace(/[.#$\/\[\]]/g,'-').replace(/\s+/g,' ');
     if(!title||!rawSchool||!level){skipped++;return;}
     // Build full school name with etablissement prefix
-    const etab=getEtablissement(level)||'';
+    const etab=getEtablissementForImport(level)||'';
     const prefix=ETAB_PREFIX[etab]?ETAB_PREFIX[etab]+' ':'';
     const pLow=prefix.toLowerCase().trim();
     const rLow=rawSchool.toLowerCase();
@@ -773,20 +773,29 @@ function renameSchool(i){
 }
 function renderLvTags(){const school=document.getElementById('schoolForLv').value;const c=document.getElementById('levelTags');if(!school){c.innerHTML='';return;}c.innerHTML=(schoolLevels[school]||[]).map((lv,i)=>{const e=getEtablissement(lv);const col=etabColor(e);const badge=e?`<span style="font-size:.6rem;background:${col.bg};color:${col.tx};border-radius:3px;padding:0 5px;margin-left:4px;font-weight:700">${e}</span>`:'';return`<span class="tag lv">${lv}${badge} <span class="xt" onclick="removeLv('${school}',${i})">✕</span></span>`;}).join('');onSchoolChange();}
 function addLevel(){const school=document.getElementById('schoolForLv').value;const v=document.getElementById('newLv').value.trim();if(!school||!v)return;if(!schoolLevels[school])schoolLevels[school]=[];if(!schoolLevels[school].includes(v))schoolLevels[school].push(v);if(autoSave)saveDataToStorage();renderLvTags();document.getElementById('newLv').value='';showToast('✅ Niveau ajouté');}
-const STANDARD_LEVELS={
-  mission:['TPS','PS','MS','GS','CP','CE1','CE2','CM1','CM2','6ème','5ème','4ème','3ème','2nde','1ère','Terminale'],
-  privee:['Maternelle','Préparatoire','1ère année primaire','2ème année primaire','3ème année primaire','4ème année primaire','5ème année primaire','6ème année primaire','7ème année','8ème année','9ème année','1ère année secondaire','2ème année secondaire','3ème année secondaire','Bac']
-};
-function generateStandardLevels(type){
-  const school=document.getElementById('schoolForLv').value;
-  if(!school){showToast('⚠️ Choisissez d\'abord une école');return;}
-  const list=STANDARD_LEVELS[type];if(!list)return;
-  if(!schoolLevels[school])schoolLevels[school]=[];
-  let added=0;
-  list.forEach(v=>{if(!schoolLevels[school].includes(v)){schoolLevels[school].push(v);added++;}});
-  if(autoSave)saveDataToStorage();
-  renderLvTags();
-  showToast(added?`✅ ${added} niveau(x) ajouté(s) (${type==='mission'?'École de Mission':'École Privée'})`:'ℹ️ Ces niveaux existent déjà pour cette école');
+let xlSchoolType='';
+function setXlSchoolType(t){
+  xlSchoolType=t;
+  document.querySelectorAll('.xltype-btn').forEach(b=>b.classList.toggle('on',b.dataset.xltype===t));
+  if(_xlRows.length){xlShowSchoolMap();xlUpdatePreview();}
+}
+// Text-based detection (getEtablissement) is tried first since it's unambiguous.
+// This only kicks in for bare numeric levels (e.g. an Excel cell just containing "7"),
+// where Mission and Privée schools number their Collège years differently.
+function getEtablissementForImport(level){
+  const generic=getEtablissement(level);
+  if(generic)return generic;
+  if(!xlSchoolType)return null;
+  const m=String(level).trim().match(/^(\d+)/);
+  if(!m)return null;
+  const n=+m[1];
+  if(xlSchoolType==='mission'){
+    if(n>=3&&n<=6)return 'Collège'; // 6e,5e,4e,3e
+  }else if(xlSchoolType==='privee'){
+    if(n>=1&&n<=6)return 'Primaire'; // 1ère...6ème année primaire
+    if(n>=7&&n<=9)return 'Collège'; // 7e,8e,9e année
+  }
+  return null;
 }
 function removeLv(school,i){if(schoolLevels[school])schoolLevels[school].splice(i,1);if(autoSave)saveDataToStorage();renderLvTags();}
 function buildAdmSchOpts(){const sel=document.getElementById('edSch');const cur=sel.value;sel.innerHTML='<option value="">— École —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});sel.value=cur;}
