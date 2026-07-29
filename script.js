@@ -148,8 +148,8 @@ function getEtablissement(level){
     return 'Collège';
   }
   // 2) Fallback: French naming conventions with no explicit suffix keyword
-  if(/^(tps|cp|ce1|ce2|cm1|cm2|maternelle|ps|ms|gs|cp1|cp2)\b/.test(l))return 'Primaire';
-  if(/^[3456]\s*(e|em|eme|ieme|ième|eme|ème)\b/.test(l)||/^(troisieme|quatrieme|cinquieme|sixieme)/.test(l))return 'Collège';
+  if(/^(tps|cp|ce1|ce2|cm1|cm2|maternelle|preparatoire|ps|ms|gs|cp1|cp2)\b/.test(l))return 'Primaire';
+  if(/^[3456789]\s*(e|em|eme|ieme|ième|eme|ème)\b/.test(l)||/^(troisieme|quatrieme|cinquieme|sixieme|septieme|huitieme|neuvieme)/.test(l))return 'Collège';
   if(/^2\s*(e|em|eme|nd|nde)\b/.test(l)||/^(deuxieme|seconde)\b/.test(l))return 'Lycée';
   if(/^1\s*(e|er|re|ere|ère|ere)\b/.test(l)||/^(premiere|première)\b/.test(l))return 'Lycée';
   if(/^ter(m|\b)/.test(l))return 'Lycée';
@@ -773,6 +773,21 @@ function renameSchool(i){
 }
 function renderLvTags(){const school=document.getElementById('schoolForLv').value;const c=document.getElementById('levelTags');if(!school){c.innerHTML='';return;}c.innerHTML=(schoolLevels[school]||[]).map((lv,i)=>{const e=getEtablissement(lv);const col=etabColor(e);const badge=e?`<span style="font-size:.6rem;background:${col.bg};color:${col.tx};border-radius:3px;padding:0 5px;margin-left:4px;font-weight:700">${e}</span>`:'';return`<span class="tag lv">${lv}${badge} <span class="xt" onclick="removeLv('${school}',${i})">✕</span></span>`;}).join('');onSchoolChange();}
 function addLevel(){const school=document.getElementById('schoolForLv').value;const v=document.getElementById('newLv').value.trim();if(!school||!v)return;if(!schoolLevels[school])schoolLevels[school]=[];if(!schoolLevels[school].includes(v))schoolLevels[school].push(v);if(autoSave)saveDataToStorage();renderLvTags();document.getElementById('newLv').value='';showToast('✅ Niveau ajouté');}
+const STANDARD_LEVELS={
+  mission:['TPS','PS','MS','GS','CP','CE1','CE2','CM1','CM2','6ème','5ème','4ème','3ème','2nde','1ère','Terminale'],
+  privee:['Maternelle','Préparatoire','1ère année primaire','2ème année primaire','3ème année primaire','4ème année primaire','5ème année primaire','6ème année primaire','7ème année','8ème année','9ème année','1ère année secondaire','2ème année secondaire','3ème année secondaire','Bac']
+};
+function generateStandardLevels(type){
+  const school=document.getElementById('schoolForLv').value;
+  if(!school){showToast('⚠️ Choisissez d\'abord une école');return;}
+  const list=STANDARD_LEVELS[type];if(!list)return;
+  if(!schoolLevels[school])schoolLevels[school]=[];
+  let added=0;
+  list.forEach(v=>{if(!schoolLevels[school].includes(v)){schoolLevels[school].push(v);added++;}});
+  if(autoSave)saveDataToStorage();
+  renderLvTags();
+  showToast(added?`✅ ${added} niveau(x) ajouté(s) (${type==='mission'?'École de Mission':'École Privée'})`:'ℹ️ Ces niveaux existent déjà pour cette école');
+}
 function removeLv(school,i){if(schoolLevels[school])schoolLevels[school].splice(i,1);if(autoSave)saveDataToStorage();renderLvTags();}
 function buildAdmSchOpts(){const sel=document.getElementById('edSch');const cur=sel.value;sel.innerHTML='<option value="">— École —</option>';Object.keys(schoolLevels).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});sel.value=cur;}
 function updEdLv(){const school=document.getElementById('edSch').value;const ls=document.getElementById('edLv');ls.innerHTML='<option value="">— Niveau —</option>';if(school&&schoolLevels[school])schoolLevels[school].forEach(lv=>{const o=document.createElement('option');o.value=lv;o.textContent=lv;ls.appendChild(o);});document.getElementById('bookEdArea').style.display='none';}

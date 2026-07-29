@@ -462,6 +462,11 @@
             <div class="sl-col">
               <h4>Niveaux par école</h4>
               <select id="schoolForLv" onchange="renderLvTags()" style="width:100%;padding:6px 9px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.78rem;outline:none;font-family:'Inter',sans-serif;margin-bottom:.4rem;background:var(--slate)"><option value="">— Sélectionner école —</option></select>
+              <div style="font-size:.7rem;font-weight:700;color:var(--tx3);margin-bottom:4px">Type d'école — générer les niveaux standards :</div>
+              <div class="trow" style="margin-top:0;margin-bottom:.5rem;flex-wrap:wrap">
+                <button class="tadd" style="background:#0EA5E9" title="GS, CP, CE1... 6ème...3ème... 2nde, 1ère, Terminale" onclick="generateStandardLevels('mission')">🏫 École de Mission</button>
+                <button class="tadd" style="background:#8B5CF6" title="Maternelle, Préparatoire, 1ère...6ème année primaire, 7-9ème année, 1-3ème secondaire, Bac" onclick="generateStandardLevels('privee')">🏛️ École Privée</button>
+              </div>
               <div class="tag-list" id="levelTags"></div>
               <div class="trow"><input class="tinp" id="newLv" placeholder="Ajouter un niveau..."><button class="tadd g" onclick="addLevel()">+ Add</button></div>
             </div>
