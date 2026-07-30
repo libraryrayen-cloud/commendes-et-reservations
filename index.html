@@ -542,14 +542,13 @@
               <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">EAN / REF</div><select id="xlColEan" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"></select></div>
               <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">MATIÈRE <span style="font-weight:400">(opt.)</span></div><select id="xlColSubject" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"><option value="-1">— Aucune —</option></select></div>
               <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">PRIX <span style="font-weight:400">(opt.)</span></div><select id="xlColPrix" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"><option value="-1">— Aucune —</option></select></div>
+              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">ÉCOLE</div><select id="xlColSchool" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"></select></div>
+              <div><div style="font-size:.68rem;font-weight:700;color:var(--tx3);margin-bottom:3px">NIVEAU / CLASSE</div><select id="xlColLevel" class="adm-inp" style="width:100%;font-size:.8rem" onchange="xlUpdatePreview();xlCheckConflicts()"></select></div>
             </div>
-            <!-- École et Niveau détectés automatiquement (hidden) -->
-            <select id="xlColSchool" style="display:none"></select>
-            <select id="xlColLevel" style="display:none"></select>
             <!-- Aperçu 4 colonnes livre uniquement -->
             <div class="twrap" style="max-height:200px;overflow-y:auto;margin-bottom:14px">
               <table class="dtable">
-                <thead><tr><th>Titre / Désignation</th><th>EAN / Ref</th><th>Matière</th><th>Prix</th></tr></thead>
+                <thead><tr><th>Titre / Désignation</th><th>EAN / Ref</th><th>Matière</th><th>Prix</th><th>École</th><th>Niveau</th></tr></thead>
                 <tbody id="xlPrevBody"></tbody>
               </table>
             </div>
