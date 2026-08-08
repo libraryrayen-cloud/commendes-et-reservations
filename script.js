@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════
+﻿// ══════════════════════════════════════════
 // FIREBASE CONFIG — remplacez par votre config
 // ══════════════════════════════════════════
 const firebaseConfig = {
@@ -705,16 +705,10 @@ function saveLogos(cb){
 function loadLogos(){try{const l=localStorage.getItem('librairie_logo');if(l&&!logoUrl)logoUrl=l;}catch(e){}try{const l=localStorage.getItem('librairie_navlogo');if(l&&!logoNavUrl)logoNavUrl=l;}catch(e){}}
 const LOGO_MAX_BYTES=5*1024*1024;
 function syncLogoField(kind,dataUrl,file,label){
-  const fallback=()=>{saveLogos((ok,err)=>{showToast(ok?'✅ '+label+' synchronisé sur tous les appareils':'❌ Échec de synchronisation : '+(err||'erreur inconnue')+' — réessayez');});};
-  if(fbStorage&&fbDb){
-    fbStorage.ref('logos/'+kind+'.jpg').put(file)
-      .then(snap=>snap.ref.getDownloadURL())
-      .then(url=>fbDb.ref('librairie/logos/'+kind).set(url))
-      .then(()=>{showToast('✅ '+label+' synchronisé (Firebase Storage) sur tous les appareils');})
-      .catch(()=>{fallback();});
-  }else{
-    fallback();
-  }
+  // Firebase Storage disabled here too: the bucket's CORS config blocks this GitHub Pages
+  // origin, and put() retries internally for minutes before failing, making uploads look stuck.
+  // The Realtime Database fallback below works immediately with no CORS involved.
+  saveLogos((ok,err)=>{showToast(ok?'✅ '+label+' synchronisé sur tous les appareils':'❌ Échec de synchronisation : '+(err||'erreur inconnue')+' — réessayez');});
 }
 function uploadLogo(input){
   const f=input.files[0];if(!f)return;
@@ -934,15 +928,12 @@ function uplBkImg(input,i){
         showToast(ok?'✅ Photo synchronisée sur '+n+' fiche(s), tous les appareils':'❌ Échec de synchronisation — vérifiez votre connexion et réessayez');
       });
     };
-    if(fbStorage){
-      fetch(compressed).then(r=>r.blob())
-        .then(blob=>fbStorage.ref('bookImages/'+bookId+'.jpg').put(blob))
-        .then(snap=>snap.ref.getDownloadURL())
-        .then(url=>finalize(url))
-        .catch(()=>finalize(compressed));
-    }else{
-      finalize(compressed);
-    }
+    // Firebase Storage upload disabled: the bucket's CORS config blocks requests from this
+    // GitHub Pages origin (browser console showed repeated "blocked by CORS policy" / ERR_FAILED
+    // on firebasestorage.googleapis.com), which made uploads hang on "Upload en cours..." forever.
+    // The compressed image is small enough to store directly in the Realtime Database instead —
+    // no CORS involved, and it's what the old fallback path already did successfully.
+    finalize(compressed);
   });
 }
 function addBookRow(){const school=document.getElementById('edSch').value;const lv=document.getElementById('edLv').value;if(!school||!lv)return;const key=gk(school,lv);if(!booksDB[key])booksDB[key]=[];booksDB[key].push({id:Date.now(),title:'Nouveau livre',ean:'',subject:'Matière',priceHT:8.000,color:CLRS[Math.floor(Math.random()*CLRS.length)],img:''});renderBookEd();}
@@ -1062,3 +1053,4 @@ try{syncLogos();updateStorageInfo();}catch(e){}
 setTimeout(()=>{try{syncLogos();}catch(e){}},1500);
 setTimeout(()=>{try{loadImgsIntoBooks();if(filtSchool&&filtLv){_books=booksDB[gk(filtSchool,filtLv)]||[];if(_books.length)renderGrid(_books);}}catch(e){}},2000);
 setTimeout(()=>{try{syncLogos();}catch(e){}},4000);
+
