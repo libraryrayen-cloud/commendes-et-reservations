@@ -428,7 +428,8 @@ function renderFournisseur(){
   tb.innerHTML=rows.map(({r,_type,_idx})=>{
     const nb=(r.items||[]).reduce((s,x)=>s+x.qty,0);
     const d=r.date?new Date(r.date).toLocaleDateString('fr-FR'):'—';
-    return `<tr>
+    const sentBadge=r.sentFournisseur?`<span style="background:#20cf9e;color:white;border-radius:4px;padding:1px 7px;font-size:.7rem" title="Envoyée au fournisseur le ${r.sentFournisseurDate||''}">📤 Envoyée</span>`:`<span style="color:var(--tx3);font-size:.7rem">— Non envoyée</span>`;
+    return `<tr style="${r.sentFournisseur?'opacity:.65':''}">
       <td><input type="checkbox" class="four-chk" data-idx="${_idx}" data-type="${_type}" onchange="fourUpdateCount()"></td>
       <td>#${String(r.id).padStart(4,'0')}</td>
       <td><span style="background:${_type==='Commande'?'var(--green)':'var(--orange)'};color:white;border-radius:4px;padding:1px 7px;font-size:.72rem">${_type}</span></td>
@@ -436,6 +437,7 @@ function renderFournisseur(){
       <td style="font-size:.78rem">${r.school||'—'} / ${r.level||'—'}</td>
       <td style="text-align:center;font-weight:700">${nb}</td>
       <td style="font-size:.78rem">${d}</td>
+      <td>${sentBadge}</td>
     </tr>`;
   }).join('');
   fourUpdateCount();
@@ -456,6 +458,7 @@ function genFournisseurCmd(){
   const chks=[...document.querySelectorAll('.four-chk:checked')];
   if(!chks.length){alert('Veuillez sélectionner au moins une commande ou réservation.');return;}
   const agg={};
+  const sentDate=new Date().toLocaleDateString('fr-FR');
   chks.forEach(c=>{
     const idx=+c.dataset.idx;const tp=c.dataset.type;
     const src=tp==='Commande'?orders:reservations;
@@ -466,6 +469,8 @@ function genFournisseurCmd(){
       if(!agg[k])agg[k]={ean:item.ean||'—',title:item.title||'—',qty:0};
       agg[k].qty+=item.qty;
     });
+    rec.sentFournisseur=true;
+    rec.sentFournisseurDate=sentDate;
   });
   _fourAgg=Object.values(agg).sort((a,b)=>a.title.localeCompare(b.title));
   const tbody=document.getElementById('fourResBody');
@@ -485,6 +490,9 @@ function genFournisseurCmd(){
   fourHistory.push({id:histId,date:new Date().toLocaleString('fr-FR'),items:_fourAgg,titleCount:_fourAgg.length,totalQty,sourceCount:chks.length});
   saveDataToStorage();
   renderFourHistory();
+  renderFournisseur();
+  renderOrders();
+  renderResvs();
   showToast('✅ Commande fournisseur générée et enregistrée dans l\'historique');
 }
 function renderFourHistory(){
@@ -523,6 +531,16 @@ function deleteFourHistory(id){
   saveDataToStorage();
   renderFourHistory();
   showToast('🗑️ Entrée supprimée');
+}
+function dlFournisseurExcel(){
+  if(!_fourAgg||!_fourAgg.length){alert('Générez d\'abord la commande.');return;}
+  const rows=_fourAgg.map(r=>({'Titre':r.title,'EAN':r.ean,'Quantité':r.qty}));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:50},{wch:16},{wch:10}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Commande fournisseur');
+  XLSX.writeFile(wb,'commande-fournisseur-'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('📊 Fichier Excel téléchargé');
 }
 function dlFournisseurPDF(){
   if(!_fourAgg||!_fourAgg.length){alert('Générez d\'abord la commande.');return;}
@@ -584,13 +602,26 @@ function dlFournisseurPDF(){
 }
 function aTab(i){curAT=i;document.querySelectorAll('.atab').forEach((t,j)=>t.classList.toggle('on',j===i));document.querySelectorAll('.tpanel').forEach((p,j)=>p.classList.toggle('on',j===i));if(i===0)renderDash();if(i===1)renderOrders();if(i===2)renderResvs();if(i===3)renderClients();if(i===4)renderReceipts();if(i===5)updateStorageInfo();if(i===6){renderFournisseur();renderFourHistory();}}
 function toggleDelivery(id){const o=orders.find(r=>String(r.id)===String(id));if(!o)return;o.delivered=!o.delivered;saveDataToStorage();renderOrders();showToast(o.delivered?'📦 Marquée comme livrée':'🕐 Marquée comme non livrée');}
-function buildRow(r){const pc=r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':r.payment==='Espèces'?'bcash':'bres';const sc=r.status==='Confirmée'?'bok':'bpend';const dlvBtn=r.delivered?`<button class="del-row-btn" style="background:#20cf9e;border-color:#20cf9e;min-width:80px" onclick="toggleDelivery(${r.id})" title="Cliquer pour marquer non livrée">📦 Livré</button>`:`<button class="del-row-btn" style="background:#718096;border-color:#718096;min-width:80px" onclick="toggleDelivery(${r.id})" title="Cliquer pour marquer livrée">🕐 En cours</button>`;return`<tr style="${r.delivered?'opacity:.7':''}"><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td>${r.address!==undefined?`<td style="font-size:.76rem;max-width:100px">${r.address}</td>`:''}<td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge ${pc}">${r.payment}</span></td><td><span class="badge ${sc}">${r.status}</span></td><td>${r.date}</td><td style="display:flex;gap:4px">${dlvBtn}<button class="del-row-btn" onclick="deleteOrder(${r.id})" title="Supprimer">🗑️</button></td></tr>`;}
+function buildRow(r){const pc=r.payment==='Visa Card'?'bvis':r.payment==='E-Dinar'?'bedin':r.payment==='Espèces'?'bcash':'bres';const sc=r.status==='Confirmée'?'bok':'bpend';const dlvBtn=r.delivered?`<button class="del-row-btn" style="background:#20cf9e;border-color:#20cf9e;min-width:80px" onclick="toggleDelivery(${r.id})" title="Cliquer pour marquer non livrée">📦 Livré</button>`:`<button class="del-row-btn" style="background:#718096;border-color:#718096;min-width:80px" onclick="toggleDelivery(${r.id})" title="Cliquer pour marquer livrée">🕐 En cours</button>`;const fourBadge=r.sentFournisseur?`<span class="badge" style="background:#20cf9e;color:white" title="Envoyée au fournisseur le ${r.sentFournisseurDate||''}">📤</span>`:'';return`<tr style="${r.delivered?'opacity:.7':''}"><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td>${r.address!==undefined?`<td style="font-size:.76rem;max-width:100px">${r.address}</td>`:''}<td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge ${pc}">${r.payment}</span></td><td><span class="badge ${sc}">${r.status}</span> ${fourBadge}</td><td>${r.date}</td><td style="display:flex;gap:4px">${dlvBtn}<button class="del-row-btn" onclick="deleteOrder(${r.id})" title="Supprimer">🗑️</button></td></tr>`;}
+function fixDuplicateOrderIds(){
+  let maxId=0;[...orders,...reservations].forEach(r=>{if(+r.id>maxId)maxId=+r.id;});
+  const seen=new Set();let changed=0;
+  [orders,reservations].forEach(arr=>{
+    arr.forEach(r=>{
+      if(seen.has(r.id)){maxId++;r.id=maxId;changed++;}
+      seen.add(r.id);
+    });
+  });
+  if(changed){saveDataToStorage();renderOrders();renderResvs();renderDash();showToast('🔧 '+changed+' numéro(s) dupliqué(s) corrigé(s)');}
+  else{showToast('✅ Aucun numéro dupliqué trouvé');}
+  return changed;
+}
 function deleteOrder(id){if(!confirm('Supprimer cette commande ?'))return;orders=orders.filter(o=>String(o.id)!==String(id));saveDataToStorage();renderOrders();renderDash();showToast('🗑️ Commande supprimée');}
 function deleteReservation(id){if(!confirm('Supprimer cette réservation ?'))return;reservations=reservations.filter(r=>String(r.id)!==String(id));saveDataToStorage();renderResvs();renderDash();showToast('🗑️ Réservation supprimée');}
 function renderDash(){const allRec=[...orders,...reservations];const rev=orders.reduce((s,r)=>s+r.total,0);const avances=reservations.reduce((s,r)=>s+(r.acompteAmt||0),0);const bks=allRec.reduce((s,r)=>s+r.totalQty,0);const uni=[...new Set(allRec.map(r=>r.phone))].length;document.getElementById('statsRow').innerHTML=`<div class="scard"><div class="scard-ico">📋</div><div class="scard-val">${orders.length}</div><div class="scard-lbl">Commandes</div></div><div class="scard"><div class="scard-ico">📌</div><div class="scard-val">${reservations.length}</div><div class="scard-lbl">Réservations</div></div><div class="scard"><div class="scard-ico">💰</div><div class="scard-val hi">${(rev+avances).toFixed(3)}</div><div class="scard-lbl">Revenu (DT)</div></div><div class="scard"><div class="scard-ico">👥</div><div class="scard-val">${uni}</div><div class="scard-lbl">Clients</div></div><div class="scard"><div class="scard-ico">📚</div><div class="scard-val">${bks}</div><div class="scard-lbl">Livres réservés</div></div>`;document.getElementById('recentWrap').innerHTML=`<div class="sec-h" style="margin-top:1.25rem">📋 Activité récente</div><div class="twrap"><table class="dtable"><thead><tr><th>#</th><th>Nom</th><th>Type</th><th>École</th><th>Total</th><th>Statut</th><th>Date</th></tr></thead><tbody>${[...orders,...reservations].slice(-6).reverse().map(r=>`<tr><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td><span class="badge ${r.type==='order'?'bvis':'bres'}">${r.type==='order'?'Commande':'Réservation'}</span></td><td>${r.school}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge ${r.status==='Confirmée'?'bok':'bpend'}">${r.status}</span></td><td>${r.date}</td></tr>`).join('')}</tbody></table></div>`;}
 function renderOrders(){document.getElementById('ordBody').innerHTML=orders.slice().reverse().map(r=>buildRow(r)).join('');const t=orders.reduce((s,r)=>s+r.total,0);document.getElementById('ordTotalVal').textContent=t.toFixed(3)+' DT';}
 function confirmReservation(id){if(!confirm('Convertir cette réservation en commande payée et fermée ?'))return;const idx=reservations.findIndex(r=>String(r.id)===String(id));if(idx===-1)return;const r={...reservations[idx],type:'order',status:'Confirmée',acompteAmt:0};reservations.splice(idx,1);orders.push(r);saveDataToStorage();renderResvs();renderOrders();renderDash();showToast('✅ Réservation convertie en commande');}
-function renderResvs(){document.getElementById('resvBody').innerHTML=reservations.slice().reverse().map(r=>`<tr><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td><td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge bcash">${r.payment}</span></td><td><span class="badge bpend">${r.status}</span></td><td>${r.date}</td><td style="display:flex;gap:4px"><button class="del-row-btn" style="background:#20cf9e;border-color:#20cf9e" onclick="confirmReservation(${r.id})" title="Convertir en commande payée">✅</button><button class="del-row-btn" onclick="deleteReservation(${r.id})" title="Supprimer">🗑️</button></td></tr>`).join('');const t=reservations.reduce((s,r)=>s+r.total,0);document.getElementById('resvTotalVal').textContent=t.toFixed(3)+' DT';}
+function renderResvs(){document.getElementById('resvBody').innerHTML=reservations.slice().reverse().map(r=>{const fourBadge=r.sentFournisseur?`<span class="badge" style="background:#20cf9e;color:white" title="Envoyée au fournisseur le ${r.sentFournisseurDate||''}">📤</span>`:'';return `<tr><td>#${String(r.id).padStart(4,'0')}</td><td><strong>${r.name}</strong></td><td>${r.phone}</td><td>${r.school}</td><td>${r.level}</td><td>${r.totalQty}</td><td><strong>${r.total.toFixed(3)} DT</strong></td><td><span class="badge bcash">${r.payment}</span></td><td><span class="badge bpend">${r.status}</span> ${fourBadge}</td><td>${r.date}</td><td style="display:flex;gap:4px"><button class="del-row-btn" style="background:#20cf9e;border-color:#20cf9e" onclick="confirmReservation(${r.id})" title="Convertir en commande payée">✅</button><button class="del-row-btn" onclick="deleteReservation(${r.id})" title="Supprimer">🗑️</button></td></tr>`;}).join('');const t=reservations.reduce((s,r)=>s+r.total,0);document.getElementById('resvTotalVal').textContent=t.toFixed(3)+' DT';}
 function renderClients(){const m={};[...orders,...reservations].forEach(r=>{if(!m[r.phone])m[r.phone]={name:r.name,phone:r.phone,address:r.address||'—',orders:0,spent:0,last:r.date};m[r.phone].orders++;m[r.phone].spent+=r.total;m[r.phone].last=r.date;});document.getElementById('cliBody').innerHTML=Object.values(m).map((c,i)=>`<tr><td>${i+1}</td><td><strong>${c.name}</strong></td><td>${c.phone}</td><td style="font-size:.76rem">${c.address}</td><td>${c.orders}</td><td><strong>${c.spent.toFixed(3)} DT</strong></td><td>${c.last}</td></tr>`).join('');}
 function dlPDFById(id){const r=[...orders,...reservations].find(r=>String(r.id)===String(id));if(r)dlPDF(r);}
 function pdfDrawFooter(doc,W,H,libName,libAddr,libTel,type){doc.setFillColor(0,168,120);doc.rect(0,H-18,W,14,'F');doc.setFillColor(232,96,28);doc.rect(0,H-4,W,4,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(libName+' · '+libAddr+' · Tél : '+libTel,W/2,H-12,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Merci de votre confiance — conserver ce document comme preuve de votre '+(type==='reserve'?'réservation.':'commande.'),W/2,H-6,{align:'center'});}

@@ -554,6 +554,7 @@
             <button class="save-btn" onclick="saveDataToStorage()" style="background:var(--green)">💾 Sauvegarder maintenant</button>
             <button class="save-btn" onclick="exportData()" style="background:var(--navy);color:white">📥 Exporter JSON</button>
             <button class="save-btn" onclick="clearAllData()" style="background:#D63031;color:white">🗑️ Réinitialiser données</button>
+            <button class="save-btn" onclick="fixDuplicateOrderIds()" style="background:var(--orange);color:white">🔧 Corriger numéros dupliqués</button>
           </div>
           <div style="margin-top:1rem;padding:.8rem;background:var(--slate);border-radius:var(--rs);font-size:.78rem;color:var(--tx3)">
             📊 <strong>Stockage local :</strong> <span id="storageInfo">—</span>
@@ -581,7 +582,7 @@
           <table class="dtable">
             <thead><tr>
               <th style="width:36px"><input type="checkbox" id="fourChkAll" onchange="fourSelAll(this.checked?1:0)" title="Tout cocher"></th>
-              <th>#</th><th>Type</th><th>Client</th><th>École / Niveau</th><th>Livres</th><th>Date</th>
+              <th>#</th><th>Type</th><th>Client</th><th>École / Niveau</th><th>Livres</th><th>Date</th><th>Statut fournisseur</th>
             </tr></thead>
             <tbody id="fourBody"></tbody>
           </table>
@@ -599,8 +600,9 @@
               <tbody id="fourResBody"></tbody>
             </table>
           </div>
-          <div style="margin-top:12px">
+          <div style="margin-top:12px;display:flex;gap:.6rem;flex-wrap:wrap">
             <button class="save-btn" style="background:var(--navy);color:white" onclick="dlFournisseurPDF()">📄 Télécharger PDF</button>
+            <button class="save-btn" style="background:var(--green);color:white" onclick="dlFournisseurExcel()">📊 Télécharger Excel</button>
           </div>
         </div>
         <div class="sec-h" style="margin-top:28px">🕘 Historique des commandes envoyées</div>
