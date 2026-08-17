@@ -468,6 +468,15 @@
             </div>
           </div>
         </div>
+        <!-- Recherche livre → écoles -->
+        <div class="set-card" style="grid-column:1/-1">
+          <h3>🔍 Dans quelle école se trouve ce livre ?</h3>
+          <p style="font-size:.8rem;color:var(--tx3);margin-bottom:.75rem">Tapez un titre ou un EAN pour voir dans quelle(s) école(s) et niveau(x) ce livre est enregistré.</p>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem">
+            <input type="text" id="bookLocSearch" placeholder="Titre ou EAN du livre..." oninput="searchBookLocations(this.value)" style="flex:1;min-width:220px;padding:8px 12px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.85rem;outline:none;font-family:'Inter',sans-serif;background:var(--slate)">
+          </div>
+          <div id="bookLocResults"></div>
+        </div>
         <!-- Books editor -->
         <div class="set-card" style="grid-column:1/-1">
           <h3>📚 Livres, EANs & Prix</h3>
